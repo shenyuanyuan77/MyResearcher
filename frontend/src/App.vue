@@ -47,6 +47,26 @@
               {{ exporting ? '导出中…' : '⬇ 导出报告' }}
             </button>
             <div v-if="exportMenuOpen" class="export-dropdown">
+              <div class="export-options">
+                <label class="export-field">
+                  <span>引用格式</span>
+                  <select v-model="exportCitationStyle">
+                    <option value="gbt7714">GB/T 7714-2015</option>
+                    <option value="apa">APA 第7版</option>
+                    <option value="ieee">IEEE</option>
+                    <option value="chicago">Chicago</option>
+                    <option value="vancouver">Vancouver</option>
+                    <option value="mla">MLA 第9版</option>
+                  </select>
+                </label>
+                <label class="export-field" v-if="false">
+                  <span>PDF 模板</span>
+                  <select v-model="exportPdfTemplate">
+                    <option value="report">报告（单栏）</option>
+                    <option value="academic">学术论文（双栏）</option>
+                  </select>
+                </label>
+              </div>
               <button @click="exportReport('docx')">📄 Word (.docx)</button>
               <button @click="exportReport('pdf')">📑 PDF</button>
               <button @click="exportReport('md')">📝 Markdown</button>
@@ -150,6 +170,8 @@ const sidebarOpen = ref(false)
 const sidebarCollapsed = ref(false)
 const exportMenuOpen = ref(false)
 const exporting = ref(false)
+const exportCitationStyle = ref('gbt7714')
+const exportPdfTemplate = ref('report')
 let abortController = null
 
 const HIDDEN_TOOL_NAMES = new Set([
@@ -356,7 +378,7 @@ async function exportReport(format) {
   if (!currentThreadId.value) return
   exporting.value = true
   try {
-    const { getToken } = await import('./api/http.js')
+    const { getToken, extractApiError } = await import('./api/http.js')
     const token = getToken()
     const resp = await fetch('/api/report/export', {
       method: 'POST',
@@ -364,11 +386,16 @@ async function exportReport(format) {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ thread_id: currentThreadId.value, format, citation_style: 'gbt7714' }),
+      body: JSON.stringify({
+        thread_id: currentThreadId.value,
+        format,
+        citation_style: exportCitationStyle.value,
+        pdf_template: exportPdfTemplate.value,
+      }),
     })
     if (!resp.ok) {
-      const detail = await resp.json().catch(() => ({}))
-      throw new Error(detail.detail || `导出失败 (${resp.status})`)
+      const body = await resp.json().catch(() => ({}))
+      throw new Error(extractApiError(body, `导出失败 (${resp.status})`))
     }
     const blob = await resp.blob()
     const cd = resp.headers.get('content-disposition') || ''
@@ -564,6 +591,28 @@ onUnmounted(() => {
   cursor: pointer;
 }
 .export-dropdown button:hover { background: var(--c-primary-soft); color: var(--c-primary); }
+.export-options {
+  padding: 6px 4px 8px;
+  border-bottom: 1px solid var(--c-border);
+  margin-bottom: 4px;
+}
+.export-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--fz-mini);
+  color: var(--c-text-secondary);
+}
+.export-field span { font-weight: 500; }
+.export-field select {
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fz-caption);
+}
 .workspace-status span {
   width: 7px; height: 7px;
   border-radius: 50%;
