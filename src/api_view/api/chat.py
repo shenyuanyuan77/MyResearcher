@@ -77,12 +77,27 @@ def write_debug_log(filepath: str, event_type: str, data: dict, raw_token: objec
         pass  # 调试日志失败不影响主流程
 
 
-_KNOWN_SUBAGENTS = frozenset({
-    "literature-analyst",
-    "review-expert",
-    "researcher",
-    "general",
-})
+def _load_known_subagents() -> frozenset:
+    """从 src/agent/subagents/configs/ 动态加载真实子代理名（.yaml/.yml 文件名去扩展名）。
+
+    历史版本写死了采购项目的虚构子代理名（researcher/general 等），
+    实际 configs 目录为空。改为动态加载：有配置文件则用之，否则返回空集
+    （extract_subagent_name 会回退到通用 UUID 过滤逻辑）。
+    """
+    import os
+    configs_dir = os.path.join(os.path.dirname(__file__), "..", "..", "agent", "subagents", "configs")
+    names = set()
+    try:
+        if os.path.isdir(configs_dir):
+            for fn in os.listdir(configs_dir):
+                if fn.endswith((".yaml", ".yml")):
+                    names.add(os.path.splitext(fn)[0])
+    except OSError:
+        pass
+    return frozenset(names)
+
+
+_KNOWN_SUBAGENTS = _load_known_subagents()
 
 
 def extract_subagent_name(namespace: tuple) -> str:
@@ -290,11 +305,21 @@ def drop_images_already_in_markdown_text(result: dict) -> dict:
     return result
 
 
+# 学术/通用图片托管直链白名单（含开源图床与学术资源站）。
+# 历史版本是采购项目的 Alipay CDN host 列表，已替换为通用学术图片源。
 _IMAGE_CDN_HOSTS = (
-    "mdn.alipayobjects.com",
-    "img.alicdn.com",
-    "gw.alipayobjects.com",
-    "zos.alipayobjects.com",
+    "img.shields.io",
+    "raw.githubusercontent.com",
+    "user-images.githubusercontent.com",
+    "objects.githubusercontent.com",
+    "avatars.githubusercontent.com",
+    "upload.wikimedia.org",
+    "upload-os-bbs.hoyolab.com",
+    "ars.els-cdn.com",
+    "media.springernature.com",
+    "ieeexplore.ieee.org",
+    "cdn.pixabay.com",
+    "images.unsplash.com",
 )
 
 
@@ -319,24 +344,25 @@ def extract_bare_image_urls(text: str) -> list[str]:
 
 
 def strip_leaked_tool_meta(text: str) -> str:
-    """去掉误展示给用户的工具/调试 JSON 尾巴（如 {"suppliers":[],"query":"..."}）。
+    """去掉误展示给用户的工具/调试 JSON 尾巴。
 
+    学术场景：清理 memory_update 的偏好 JSON 泄漏、工具返回的调试 JSON 等。
     注意：不要在这里做 Markdown 表格重整——流式每个 token 上重整会把
     未完成的多行报告拆毁。完整重整见 normalize_assistant_markdown()。
     """
     if not text:
         return text
     cleaned = text
-    # 常见泄漏：尾部短 JSON
+    # 常见泄漏：尾部短 JSON（学术偏好 / 工具调试字段）
     cleaned = re.sub(
-        r'\s*\{[^{}]*"(?:suppliers|query|thread_id|tool_call_id)"[^{}]{0,400}\}\s*$',
+        r'\s*\{[^{}]*"(?:research_direction|cognitive_level|research_topics|papers_read|preferred_language|query|thread_id|tool_call_id)"[^{}]{0,400}\}\s*$',
         "",
         cleaned,
         flags=re.DOTALL,
     )
-    # 正文中夹带的同款 JSON 块
+    # 正文中夹带的偏好 JSON 块（memory_update 泄漏）
     cleaned = re.sub(
-        r'\s*\{\s*"suppliers"\s*:\s*\[[^\]]*\]\s*,\s*"query"\s*:\s*"[^"]*"\s*\}\s*',
+        r'\s*\{\s*"research_direction"\s*:\s*"[^"]*"\s*(?:,\s*"[^"]+"\s*:\s*[^}]*)?\}\s*',
         "",
         cleaned,
     )
@@ -540,10 +566,10 @@ async def stream_chat_response(
     1. 初始对话 — 传入 message（用户消息）
     2. 中断恢复 — 传入 resume_data（Command.resume 的值）
 
-    当 Agent 触发中断时（request_order_info 数据补充 / order_create|update HITL 审批），
+    当 Agent 触发中断时（信息补充请求 / HITL 审批），
     流会发送 interrupt 事件后结束。前端收集用户决策后通过 /resume 端点恢复。
 
-    同时累积完整的展示消息列表（包含子代理消息），在流结束后存入 MongoDB。
+    同时累积完整的展示消息列表（包含子代理消息），在流结束后持久化。
     """
     from agent.settings import settings
     from agent.schema import ResearchContext
@@ -653,10 +679,10 @@ async def stream_chat_response(
                         })
 
                     elif interrupt_value.get("type") == "order_info_request":
-                        # ---- 第 1 层：数据补充中断（request_order_info 工具）----
+                        # ---- 第 1 层：信息补充中断（通用：工具请求用户提供缺失字段）----
                         yield create_sse_message({
                             "type": "interrupt",
-                            "interrupt_type": "order_info_supplement",
+                            "interrupt_type": "info_supplement",
                             "missing_fields": interrupt_value["missing_fields"],
                             "collected_data": interrupt_value["collected_data"],
                             "thread_id": thread_id,
@@ -909,8 +935,9 @@ async def stream_chat_response(
 
                 # 标记：子代理已在流式输出分析报告（用 is_subagent，勿看 display source）
                 if is_subagent and (
-                    "采购分析报告" in content_text
+                    "研究报告" in content_text
                     or "分析报告" in content_text
+                    or "综述报告" in content_text
                     or looks_like_analysis_report(
                         (display_messages[-1].get("content", "") if _last_display_is_assistant() else "")
                         + content_text
@@ -929,7 +956,7 @@ async def stream_chat_response(
                     )
                     if skip_main_report_echo or (
                         looks_like_analysis_report(compact)
-                        or ("采购分析报告" in compact and len(compact) > 200)
+                        or (("研究报告" in compact or "分析报告" in compact) and len(compact) > 200)
                     ):
                         if is_download_ask:
                             skip_main_report_echo = False

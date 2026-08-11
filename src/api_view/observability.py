@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import logging.handlers
 import time
 import uuid
 from contextvars import ContextVar
@@ -25,6 +26,20 @@ user_id_ctx: ContextVar[str] = ContextVar("user_id", default="-")
 _AUDIT_DIR = Path(__file__).resolve().parents[2] / "logs"
 _AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 _AUDIT_FILE = _AUDIT_DIR / "audit.jsonl"
+
+# 审计日志轮转：单文件最大 10MB，保留 5 份历史，避免无限增长
+_AUDIT_ROTATOR = logging.handlers.RotatingFileHandler(
+    _AUDIT_FILE,
+    maxBytes=10 * 1024 * 1024,
+    backupCount=5,
+    encoding="utf-8",
+)
+_AUDIT_ROTATOR.setFormatter(logging.Formatter("%(message)s"))
+_AUDIT_LOGGER = logging.getLogger("api.audit")
+_AUDIT_LOGGER.setLevel(logging.INFO)
+_AUDIT_LOGGER.propagate = False
+if not _AUDIT_LOGGER.handlers:
+    _AUDIT_LOGGER.addHandler(_AUDIT_ROTATOR)
 
 
 class RequestContextFilter(logging.Filter):
@@ -85,25 +100,24 @@ def write_audit(
     user_id: Optional[str] = None,
     detail: Optional[dict] = None,
     success: bool = True,
-    # 结构化写操作字段（阶段 2 新增，向后兼容旧调用）
+    # 学术场景结构化字段
+    thread_id: Optional[str] = None,
+    tool: Optional[str] = None,
     entity_type: Optional[str] = None,
     entity_id: Optional[Any] = None,
     before: Optional[Any] = None,
     after: Optional[Any] = None,
-    erp_action_id: Optional[str] = None,
-    approval_id: Optional[str] = None,
     task_id: Optional[str] = None,
-    idemp_key: Optional[str] = None,
 ) -> None:
     """
-    写入审计日志（订单/审批/写工具调用等敏感操作）。
+    写入审计日志（学术敏感操作：检索/导出/会话变更/库收藏等）。
 
-    新增结构化字段（向后兼容）：
-    - entity_type/entity_id: 操作实体类型与主键（如 order/123）
+    结构化字段：
+    - thread_id: 会话 ID
+    - tool: 触发的 MCP 工具名（如 paper_search / paper_distill）
+    - entity_type/entity_id: 操作实体类型与主键（如 library/<doi>）
     - before/after: 改前/改后字段快照（便于回溯）
-    - erp_action_id: ERP 写操作调用 ID（与 task_id 一般不同）
-    - approval_id: 关联审批中心记录
-    - idemp_key: 幂等键
+    - task_id: 子代理任务 ID
     """
     if not settings.audit_log_enabled:
         return
@@ -116,14 +130,13 @@ def write_audit(
         "detail": detail or {},
     }
     # 仅在有值时写入结构化字段，避免日志膨胀
-    for key, val in [("entity_type", entity_type), ("entity_id", entity_id),
+    for key, val in [("thread_id", thread_id), ("tool", tool),
+                     ("entity_type", entity_type), ("entity_id", entity_id),
                      ("before", before), ("after", after),
-                     ("erp_action_id", erp_action_id), ("approval_id", approval_id),
-                     ("task_id", task_id), ("idemp_key", idemp_key)]:
+                     ("task_id", task_id)]:
         if val is not None:
             payload[key] = val
     try:
-        with _AUDIT_FILE.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
+        _AUDIT_LOGGER.info(json.dumps(payload, ensure_ascii=False, default=str))
     except Exception:
         logging.getLogger(__name__).exception("写入审计日志失败")

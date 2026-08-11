@@ -1,10 +1,11 @@
 """
-自动记忆更新中间件。
+自动记忆更新中间件（学术版）。
 
-在每轮 Agent 回复完成后（aafter_agent 钩子），自动提取对话中涉及的
-供应商名称和查询摘要，更新 StoreBackend 中的用户偏好文件。
+在每轮 Agent 回复完成后（aafter_agent 钩子），自动提取对话中涉及的学术实体
+（研究方向、认知等级、偏好语言、研究主题、读过的论文），更新 Store 中的用户偏好。
 
-Agent 无需手动维护 recent_suppliers / recent_queries —— 系统自动处理。
+伴随式成长（千人千面）的真实落地：用户的 research_direction / cognitive_level /
+research_topics 会跨会话累积，下次对话自动注入 ResearchContext。
 
 使用方式:
     from agent.middlewares.memory_update import MemoryUpdateMiddleware
@@ -26,12 +27,22 @@ from agent.intent_router import is_quick_lookup
 
 logger = logging.getLogger(__name__)
 
-# 触发自动更新的 ERP 业务关键词（中文）
+# 触发自动更新的学术关键词（中英文）
 _TRIGGER_KEYWORDS = [
-    "供应商", "物料", "采购", "订单", "价格", "分析", "对比",
-    "比价", "报价", "评估", "筛选", "推荐", "行情", "预算",
-    "库存", "交货", "交期", "质量", "成本", "报价", "招标",
-    "supplier", "part", "order", "price", "analysis",
+    # 研究行为
+    "研究", "方向", "领域", "课题", "选题", "开题", "综述", "文献",
+    "精读", "审稿", "投稿", "期刊", "会议", "论文", "导师", "实验",
+    "数据集", "方法", "模型", "算法", "baseline", "消融", "对比",
+    "跨界", "融合", "推演", "可行性", "创新点", "贡献",
+    # 认知/阶段
+    "开题", "中期", "答辩", "毕业", "博一", "博二", "研一", "研二",
+    # 语言偏好
+    "中文", "英文", "English", "Chinese",
+    # 研究动词
+    "检索", "查", "找", "读", "写", "分析", "总结", "提炼", "对比", "评估",
+    # 英文触发
+    "research", "paper", "literature", "review", "survey", "topic",
+    "direction", "field", "domain", "method", "experiment", "dataset",
 ]
 
 # 跳过更新的无意义消息模式
@@ -39,62 +50,55 @@ _SKIP_PATTERNS = [
     "你好", "在吗", "嗨", "hello", "hi", "hey",
     "你能做什么", "你有哪些功能", "你是谁",
     "我之前的偏好", "我的偏好", "我的记忆",
+    "谢谢", "感谢", "thanks", "ok", "好的",
 ]
 
 
-def _is_meaningful_erp_exchange(messages: List[BaseMessage]) -> Optional[str]:
-    """检查最后一条用户消息是否为有意义的 ERP 交互。
+def _extract_last_user_message(messages: List[BaseMessage]) -> Optional[str]:
+    """从消息列表末尾找到最后一条用户消息，返回其文本内容。"""
+    for msg in reversed(messages):
+        if getattr(msg, "type", None) == "human":
+            content = msg.content
+            if isinstance(content, list):
+                content = " ".join(
+                    part.get("text", "") if isinstance(part, dict) else str(part)
+                    for part in content
+                )
+            content = str(content).strip()
+            return content if content else None
+    return None
+
+
+def _is_meaningful_academic_exchange(messages: List[BaseMessage]) -> Optional[str]:
+    """检查最后一条用户消息是否为有意义的学术交互。
 
     Returns:
         用户消息文本（有意义时），或 None（应跳过）。
     """
-    # 从后往前找最后一条用户消息
-    last_user_msg = None
-    for msg in reversed(messages):
-        msg_type = getattr(msg, "type", None)
-        if msg_type == "human":
-            last_user_msg = msg
-            break
-
-    if last_user_msg is None:
-        return None
-
-    content = last_user_msg.content
-    if isinstance(content, list):
-        content = " ".join(
-            part.get("text", "") if isinstance(part, dict) else str(part)
-            for part in content
-        )
-    content = str(content).strip()
-
-    if not content:
+    last_user_msg_text = _extract_last_user_message(messages)
+    if last_user_msg_text is None:
         return None
 
     # 跳过无意义消息
-    content_lower = content.lower().replace(" ", "")
+    content_lower = last_user_msg_text.lower().replace(" ", "")
     for pattern in _SKIP_PATTERNS:
         if pattern.lower().replace(" ", "") in content_lower:
             return None
 
-    # 检查是否包含 ERP 关键词
-    has_erp_keyword = any(
+    # 检查是否包含学术关键词
+    has_academic_keyword = any(
         kw.lower() in content_lower for kw in _TRIGGER_KEYWORDS
     )
-    if not has_erp_keyword:
-        # 兜底：检查是否委派了子 Agent（messages 中有 task 工具调用）
-        has_subagent_call = False
-        for msg in messages:
-            if hasattr(msg, "tool_calls") and msg.tool_calls:
-                for tc in msg.tool_calls:
-                    if tc.get("name") == "task":
-                        has_subagent_call = True
-                        break
-            if has_subagent_call:
-                break
-        if not has_subagent_call:
-            return None
+    if has_academic_keyword:
+        return last_user_msg_text
 
-    return content
+    # 兜底：检查是否委派了子 Agent（messages 中有 task 工具调用）
+    for msg in messages:
+        if hasattr(msg, "tool_calls") and msg.tool_calls:
+            for tc in msg.tool_calls:
+                if tc.get("name") == "task":
+                    return last_user_msg_text
+    return None
 
 
 def _is_quick_lookup(user_message: str) -> bool:
@@ -103,7 +107,7 @@ def _is_quick_lookup(user_message: str) -> bool:
 
 
 def _extract_ai_summary(messages: List[BaseMessage]) -> str:
-    """提取最后一条 AI 消息的前 300 字符作为摘要。"""
+    """提取最后一条 AI 消息的前 400 字符作为摘要。"""
     for msg in reversed(messages):
         if getattr(msg, "type", None) == "ai":
             content = msg.content
@@ -112,35 +116,42 @@ def _extract_ai_summary(messages: List[BaseMessage]) -> str:
                     part.get("text", "") if isinstance(part, dict) else str(part)
                     for part in content
                 )
-            return str(content)[:300]
+            return str(content)[:400]
     return ""
 
 
-async def _extract_entities(
+async def _extract_academic_entities(
     model: BaseChatModel, user_message: str, ai_summary: str
 ) -> Dict[str, Any]:
-    """使用 LLM 从对话中提取供应商和查询摘要。
+    """使用 LLM 从对话中提取学术实体。
 
     Returns:
-        {"suppliers": [...], "query": "..."} 或 {"suppliers": [], "query": ""}
+        {
+            "research_direction": str,   # 研究方向（如"联邦学习+医疗影像"）
+            "cognitive_level": str,      # 认知等级 novice|intermediate|advanced|expert
+            "preferred_language": str,   # 偏好语言 zh|en|bilingual
+            "research_topics": list[str],# 研究主题/关键词
+            "papers_read": list[str],    # 本次提到的论文标题/DOI
+        }
     """
-    prompt = f"""Extract procurement-related entities from this conversation.
+    prompt = f"""Extract academic research entities from this conversation.
 
 Rules:
-1. "suppliers": Company/supplier names mentioned. Include both Chinese and English names. Empty list if none.
-2. "query": One-line summary of the user's procurement need. Empty string if not procurement-related.
+1. "research_direction": The user's research direction/field (e.g. "federated learning for medical imaging"). Empty string if not inferable.
+2. "cognitive_level": User's academic level — one of: novice (undergrad/early master), intermediate (senior master), advanced (PhD candidate), expert (postdoc/faculty). Empty string if unclear.
+3. "preferred_language": User's preferred working language — "zh", "en", or "bilingual". Empty string if unclear.
+4. "research_topics": 0-8 specific research topics/keywords discussed (e.g. ["differential privacy", "CNN", "MRI segmentation"]). Empty list if none.
+5. "papers_read": Paper titles or DOIs explicitly discussed/read this turn. Empty list if none.
 
 User message: {user_message}
 
 Assistant response summary: {ai_summary}
 
 Return ONLY a JSON object, no other text:
-{{"suppliers": ["CompanyA", "CompanyB"], "query": "brief summary"}}"""
+{{"research_direction": "", "cognitive_level": "", "preferred_language": "", "research_topics": [], "papers_read": []}}"""
 
     try:
         response = await model.ainvoke(prompt)
-
-        # 从回复中提取 JSON
         text = response.content
         if isinstance(text, list):
             text = " ".join(
@@ -149,23 +160,35 @@ Return ONLY a JSON object, no other text:
             )
         text = str(text).strip()
 
-        # 提取 JSON 块
         start = text.find("{")
         end = text.rfind("}")
         if start != -1 and end != -1 and end > start:
-            result = json.loads(text[start:end + 1])
+            raw = json.loads(text[start:end + 1])
             return {
-                "suppliers": result.get("suppliers", []),
-                "query": result.get("query", ""),
+                "research_direction": str(raw.get("research_direction", "") or "").strip(),
+                "cognitive_level": str(raw.get("cognitive_level", "") or "").strip(),
+                "preferred_language": str(raw.get("preferred_language", "") or "").strip(),
+                "research_topics": [
+                    str(t).strip() for t in raw.get("research_topics", []) if str(t).strip()
+                ][:8],
+                "papers_read": [
+                    str(p).strip() for p in raw.get("papers_read", []) if str(p).strip()
+                ][:10],
             }
     except Exception:
         logger.warning("MemoryUpdateMiddleware: LLM 提取失败，跳过本次更新", exc_info=True)
 
-    return {"suppliers": [], "query": ""}
+    return {
+        "research_direction": "",
+        "cognitive_level": "",
+        "preferred_language": "",
+        "research_topics": [],
+        "papers_read": [],
+    }
 
 
 def _create_file_value(content_str: str) -> dict:
-    """创建 StoreBackend 兼容的文件值（与 deepagents.backends.utils.create_file_data 一致）。"""
+    """创建 Store 兼容的文件值（与 deepagents.backends.utils.create_file_data 一致）。"""
     lines = content_str.split("\n")
     now = datetime.now(timezone.utc).isoformat()
     return {
@@ -176,9 +199,10 @@ def _create_file_value(content_str: str) -> dict:
 
 
 class MemoryUpdateMiddleware(AgentMiddleware):
-    """在 Agent 回复后自动更新用户记忆文件中的 recent_suppliers / recent_queries。
+    """在 Agent 回复后自动更新用户记忆（学术偏好，跨会话持久化）。
 
-    不依赖 Agent 自觉——中间件自动提取、合并、写回。
+    提取 research_direction / cognitive_level / preferred_language /
+    research_topics / papers_read，合并写入 Store。
     """
 
     def __init__(self, model: BaseChatModel) -> None:
@@ -195,7 +219,7 @@ class MemoryUpdateMiddleware(AgentMiddleware):
     async def aafter_agent(
         self, state: Dict[str, Any], runtime: Any
     ) -> Optional[Dict[str, Any]]:
-        """Agent 回复完成后触发：提取实体并更新记忆。"""
+        """Agent 回复完成后触发：提取学术实体并更新记忆。"""
         try:
             # 1. 获取 user_id
             ctx = getattr(runtime, "context", None)
@@ -211,7 +235,7 @@ class MemoryUpdateMiddleware(AgentMiddleware):
                 return None
 
             # 3. 判断是否需要更新
-            user_message = _is_meaningful_erp_exchange(messages)
+            user_message = _is_meaningful_academic_exchange(messages)
             if user_message is None:
                 return None
 
@@ -226,57 +250,73 @@ class MemoryUpdateMiddleware(AgentMiddleware):
             # 4. 提取 AI 摘要
             ai_summary = _extract_ai_summary(messages)
 
-            # 5. LLM 提取实体
-            extracted = await _extract_entities(self.model, user_message, ai_summary)
-            suppliers = extracted.get("suppliers", [])
-            query = extracted.get("query", "")
-
-            if not suppliers and not query:
+            # 5. LLM 提取学术实体
+            extracted = await _extract_academic_entities(
+                self.model, user_message, ai_summary
+            )
+            has_data = any(extracted.values())
+            if not has_data:
                 return None
 
             logger.info(
                 f"MemoryUpdateMiddleware: user={user_id}, "
-                f"suppliers={suppliers}, query={query[:50]}"
+                f"direction={extracted['research_direction'][:40]}, "
+                f"level={extracted['cognitive_level']}, "
+                f"topics={len(extracted['research_topics'])}"
             )
 
-            # 6. 从 store 读取当前偏好文件
+            # 6. 从 store 读取当前偏好
             store = getattr(runtime, "store", None)
             if store is None:
                 logger.warning("MemoryUpdateMiddleware: runtime.store 不可用")
                 return None
 
             namespace = (user_id,)
-            key = f"/{user_id}/preferences.md"
+            key = "preferences"
 
             try:
                 item = await store.aget(namespace, key)
             except Exception:
                 item = None
 
-            # 7. 解析现有内容或创建默认
-            current_lines: List[str] = []
+            # 7. 解析现有内容
+            current_prefs: Dict[str, Any] = {}
             if item is not None and hasattr(item, "value"):
                 value = item.value
                 if isinstance(value, dict):
-                    content = value.get("content", [])
-                    if isinstance(content, list):
-                        current_lines = [str(line) for line in content]
+                    # 优先取 value 里的 dict（持久化时存的 JSON）
+                    content = value.get("content", value)
+                    if isinstance(content, dict):
+                        current_prefs = content
+                    elif isinstance(content, list):
+                        try:
+                            current_prefs = json.loads("\n".join(content))
+                        except Exception:
+                            current_prefs = {}
                     elif isinstance(content, str):
-                        current_lines = content.split("\n")
+                        try:
+                            current_prefs = json.loads(content)
+                        except Exception:
+                            current_prefs = {}
                 elif isinstance(value, str):
-                    current_lines = value.split("\n")
+                    try:
+                        current_prefs = json.loads(value)
+                    except Exception:
+                        current_prefs = {}
 
-            updated_content = _merge_preferences(
-                current_lines, suppliers, query
-            )
-
-            # 8. 写回 store
-            file_value = _create_file_value(updated_content)
+            # 8. 合并并写回
+            updated = _merge_preferences(current_prefs, extracted)
+            file_value = {
+                "content": json.dumps(updated, ensure_ascii=False, indent=2),
+                "created_at": current_prefs.get("_created_at") or datetime.now(timezone.utc).isoformat(),
+                "modified_at": datetime.now(timezone.utc).isoformat(),
+            }
             await store.aput(namespace, key, file_value)
 
             logger.info(
-                f"MemoryUpdateMiddleware: 已更新 {user_id} 的记忆 "
-                f"(suppliers={len(suppliers)}, query={'yes' if query else 'no'})"
+                f"MemoryUpdateMiddleware: 已更新 {user_id} 的学术记忆 "
+                f"(direction={'yes' if extracted['research_direction'] else 'no'}, "
+                f"topics={len(extracted['research_topics'])})"
             )
 
         except Exception:
@@ -286,103 +326,41 @@ class MemoryUpdateMiddleware(AgentMiddleware):
 
 
 def _merge_preferences(
-    current_lines: List[str], new_suppliers: List[str], new_query: str
-) -> str:
-    """将新的 suppliers/query 合并到现有偏好内容中。
+    current: Dict[str, Any], extracted: Dict[str, Any]
+) -> Dict[str, Any]:
+    """将新提取的学术实体合并到现有偏好中。
 
-    策略：先移除旧 recent_suppliers / recent_queries 区块，再在末尾追加合并后的版本。
+    策略：
+    - research_direction / cognitive_level / preferred_language：新值覆盖旧值（取最新）。
+    - research_topics / papers_read：累积去重，分别上限 20 / 50。
     """
-    # 1. 解析旧的 suppliers 和 queries
-    existing_suppliers: List[str] = []
-    existing_queries: List[str] = []
+    merged: Dict[str, Any] = dict(current) if isinstance(current, dict) else {}
+    # 清理历史 schema 残留
+    merged.pop("_created_at", None)
+    merged.pop("_modified_at", None)
 
-    def _parse_list_items(lines: List[str], start_idx: int) -> tuple:
-        """从 start_idx 行（recent_xxx: 标题行）解析列表项。"""
-        items: List[str] = []
-        title_line = lines[start_idx].strip()
+    # 标量字段：新值优先
+    for field in ("research_direction", "cognitive_level", "preferred_language"):
+        new_val = extracted.get(field, "")
+        if new_val:
+            merged[field] = new_val
+        else:
+            merged.setdefault(field, current.get(field, ""))
 
-        # 检查 inline 格式: recent_suppliers: [a, b]
-        colon_pos = title_line.find(":")
-        if colon_pos != -1:
-            inline = title_line[colon_pos + 1:].strip()
-            if inline.startswith("[") and inline.endswith("]"):
-                inner = inline[1:-1].strip()
-                if inner:
-                    return [s.strip().strip("'").strip('"') for s in inner.split(",") if s.strip()], 1
+    # 列表字段：累积去重
+    existing_topics = list(merged.get("research_topics") or [])
+    for t in extracted.get("research_topics", []):
+        if t not in existing_topics:
+            existing_topics.append(t)
+    merged["research_topics"] = existing_topics[:20]
 
-        # 多行格式: 从下一行开始收集 - xxx 项
-        count = 1
-        for j in range(start_idx + 1, len(lines)):
-            stripped = lines[j].strip()
-            if stripped.startswith("- "):
-                items.append(stripped[2:].strip().strip("'").strip('"'))
-                count += 1
-            elif stripped and not lines[j].startswith(" "):
-                break  # 遇到下一个顶级字段
-            else:
-                count += 1  # 空行或注释，仍属于当前区块
-        return items, count
+    existing_papers = list(merged.get("papers_read") or [])
+    for p in extracted.get("papers_read", []):
+        if p not in existing_papers:
+            existing_papers.append(p)
+    merged["papers_read"] = existing_papers[:50]
 
-    # 2. 找出旧区块的位置和值
-    suppliers_start = -1
-    suppliers_len = 0
-    queries_start = -1
-    queries_len = 0
+    # 记录更新时间
+    merged["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-    for i, line in enumerate(current_lines):
-        stripped = line.strip()
-        if stripped.startswith("recent_suppliers:"):
-            suppliers_start = i
-            existing_suppliers, suppliers_len = _parse_list_items(current_lines, i)
-        elif stripped.startswith("recent_queries:"):
-            queries_start = i
-            existing_queries, queries_len = _parse_list_items(current_lines, i)
-
-    # 3. 从原内容中移除旧区块（从后往前移，避免索引偏移）
-    clean_lines = list(current_lines)
-    # 按起始位置降序排列，从后往前删除
-    removals = []
-    if suppliers_start >= 0:
-        removals.append((suppliers_start, suppliers_len))
-    if queries_start >= 0:
-        removals.append((queries_start, queries_len))
-    removals.sort(key=lambda x: x[0], reverse=True)
-
-    for start, length in removals:
-        del clean_lines[start:start + length]
-
-    # 4. 合并新值和旧值
-    merged_suppliers = list(new_suppliers)
-    for s in existing_suppliers:
-        if s not in merged_suppliers:
-            merged_suppliers.append(s)
-    merged_suppliers = merged_suppliers[:10]
-
-    merged_queries = [new_query] if new_query else []
-    for q in existing_queries:
-        if q.strip() not in [m.strip() for m in merged_queries]:
-            merged_queries.append(q)
-    merged_queries = merged_queries[:5]
-
-    # 5. 追加合并后的区块
-    result_lines = list(clean_lines)
-
-    # 确保末尾有空行分隔
-    if result_lines and result_lines[-1].strip():
-        result_lines.append("")
-
-    result_lines.append("recent_suppliers:")
-    if merged_suppliers:
-        for s in merged_suppliers:
-            result_lines.append(f"  - {s}")
-    else:
-        result_lines[-1] = "recent_suppliers: []"
-
-    result_lines.append("recent_queries:")
-    if merged_queries:
-        for q in merged_queries:
-            result_lines.append(f"  - {q}")
-    else:
-        result_lines[-1] = "recent_queries: []"
-
-    return "\n".join(result_lines).strip() + "\n"
+    return merged

@@ -104,11 +104,11 @@ onMounted(() => {
 })
 
 const quickTasks = [
-  { key: 'compare',   icon: 'search',   label: '检索最新综述', desc: 'RAG 领域高引文献召回',     message: '帮我检索 RAG 最新综述' },
-  { key: 'inventory', icon: 'user',     label: '学者画像',     desc: 'h 指数、代表作与研究布局', message: '查 Yann LeCun 的学者画像' },
-  { key: 'alternate', icon: 'layers',   label: '跨界推演',     desc: '两领域融合可行性评估',     message: '推演大模型×量子计算的融合可行性' },
-  { key: 'delivery',  icon: 'bubble',   label: '研究方向',     desc: '思维链与机器人控制',       message: '研究方向：思维链与机器人控制' },
-  { key: 'shortage',  icon: 'scale',    label: 'AI 审稿',     desc: '规范性检查与引用核对',     message: '审稿：帮我检查这段论文摘要' },
+  { key: 'search',    icon: 'search',   label: '检索最新综述', desc: 'RAG 领域高引文献召回',     message: '帮我检索 RAG 最新综述' },
+  { key: 'scholar',   icon: 'user',     label: '学者画像',     desc: 'h 指数、代表作与研究布局', message: '查 Yann LeCun 的学者画像' },
+  { key: 'cross',     icon: 'layers',   label: '跨界推演',     desc: '两领域融合可行性评估',     message: '推演大模型×量子计算的融合可行性' },
+  { key: 'direction', icon: 'bubble',   label: '研究方向',     desc: '思维链与机器人控制',       message: '研究方向：思维链与机器人控制' },
+  { key: 'review',    icon: 'scale',    label: 'AI 审稿',     desc: '规范性检查与引用核对',     message: '审稿：帮我检查这段论文摘要' },
 ]
 
 const pendingItems = computed(() => {
@@ -224,12 +224,11 @@ const pendingItems = computed(() => {
   color: var(--c-primary);
   display: inline-flex; align-items: center; justify-content: center;
 }
-.glyph-shortage   { background: var(--c-danger-soft);  color: var(--c-danger); }
-.glyph-compare    { background: var(--c-primary-soft); color: var(--c-primary); }
-.glyph-delivery   { background: var(--c-warning-soft); color: var(--c-warning); }
-.glyph-alternate  { background: var(--c-accent-soft);  color: var(--c-accent); }
-.glyph-inventory  { background: var(--c-warning-soft); color: var(--c-warning); }
-.glyph-monthly    { background: var(--c-success-soft); color: var(--c-success); }
+.glyph-review     { background: var(--c-danger-soft);  color: var(--c-danger); }
+.glyph-search     { background: var(--c-primary-soft); color: var(--c-primary); }
+.glyph-direction  { background: var(--c-warning-soft); color: var(--c-warning); }
+.glyph-cross      { background: var(--c-accent-soft);  color: var(--c-accent); }
+.glyph-scholar    { background: var(--c-warning-soft); color: var(--c-warning); }
 
 .quick-text { flex: 1; min-width: 0; }
 .quick-title {

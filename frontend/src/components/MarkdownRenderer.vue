@@ -6,10 +6,7 @@
 import { ref, watch, onMounted, nextTick } from 'vue'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
-import { normalizeMarkdown } from '../utils/markdownTables.js'
-import { reportTablesHealthy } from '../utils/reportTableCanon.js'
-import { injectMonthlyTrendLineChart } from '../utils/monthlyTrendChart.js'
-import { isKnownImageHost, findKnownImageUrls } from '../utils/imageHosts.js'
+import { normalizeMarkdown, reportTablesHealthy, injectMonthlyTrendLineChart, isKnownImageHost, findKnownImageUrls } from '../utils/markdown.js'
 
 /**
  * Markdown 渲染组件

@@ -153,12 +153,17 @@ def _extract_urls_from_text(text: str) -> List[str]:
         url = match.group(0)
         if url not in out:
             out.append(url)
-    # 与 chat.serialize_tool_result 对齐的裸 CDN
+    # 与 chat.extract_bare_image_urls 对齐的学术/通用图片托管 host
     hosts = (
-        "mdn.alipayobjects.com",
-        "img.alicdn.com",
-        "gw.alipayobjects.com",
-        "zos.alipayobjects.com",
+        "img.shields.io",
+        "raw.githubusercontent.com",
+        "user-images.githubusercontent.com",
+        "objects.githubusercontent.com",
+        "avatars.githubusercontent.com",
+        "upload.wikimedia.org",
+        "ars.els-cdn.com",
+        "media.springernature.com",
+        "ieeexplore.ieee.org",
     )
     for m in re.finditer(
         r"(?:^|[\s\"'(])(https?://[^\s\"'<>\)]+)(?=$|[\s\"')])",
