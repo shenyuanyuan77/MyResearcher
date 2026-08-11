@@ -61,8 +61,8 @@ export function authHeaders(extra = {}) {
 /**
  * 统一 fetch 封装：自动注入鉴权头 + 401 全局登出。
  *
- * 返回的 Response body 中若包含 {code, message, detail} 结构化错误契约，
- * 调用方可通过 response.json() 解析 code 做业务化文案路由。
+ * 结构化错误契约：后端 4xx/5xx 响应体为 {code, message, detail}，
+ * 调用方可用 extractApiError(await res.json()) 取业务化文案。
  */
 export async function apiFetch(url, options = {}) {
   const opts = { ...options }
@@ -76,4 +76,18 @@ export async function apiFetch(url, options = {}) {
     window.dispatchEvent(new CustomEvent('auth:required'))
   }
   return response
+}
+
+/**
+ * 从后端错误响应体提取业务化文案。
+ * 兼容结构化契约 {code, message, detail} 与 FastAPI 默认 {detail: "..." | {msg}}。
+ */
+export function extractApiError(body, fallback = '操作失败') {
+  if (!body) return fallback
+  if (typeof body.detail === 'object' && body.detail) {
+    return body.detail.message || body.detail.msg || fallback
+  }
+  if (typeof body.detail === 'string' && body.detail) return body.detail
+  if (typeof body.message === 'string' && body.message) return body.message
+  return fallback
 }

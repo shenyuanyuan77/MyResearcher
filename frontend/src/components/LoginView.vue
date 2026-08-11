@@ -34,7 +34,9 @@
       <button type="submit" :disabled="loading">
         {{ loading ? '登录中…' : '登录' }}
       </button>
-      <p class="hint">默认账号 yanjiu / yanjiu123（可在 .env 的 AUTH_USERS 修改）</p>
+      <p v-if="isDev" class="hint">
+        开发模式：请在 <code>.env</code> 的 <code>AUTH_USERS</code> 配置账号（生产强制 bcrypt）
+      </p>
     </form>
   </div>
 </template>
@@ -45,8 +47,9 @@ import { login } from '../api/auth.js'
 
 const emit = defineEmits(['success'])
 
-const username = ref('yanjiu')
-const password = ref('yanjiu123')
+const isDev = import.meta.env.DEV
+const username = ref('')
+const password = ref('')
 const loading = ref(false)
 const error = ref('')
 

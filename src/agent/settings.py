@@ -95,9 +95,12 @@ class Settings:
             "JWT_SECRET", "change-me-yanjiu-research-quest-2026"
         )
     )
-    jwt_expire_hours: int = field(default_factory=lambda: _int("JWT_EXPIRE_HOURS", 72))
+    jwt_expire_hours: int = field(default_factory=lambda: _int("JWT_EXPIRE_HOURS", 24))
+    # 生产默认 fail（弱配置拒启）；dev 默认 warn。可被 FAIL_ON_INSECURE_CONFIG 覆盖。
     fail_on_insecure_config: bool = field(
-        default_factory=lambda: _bool("FAIL_ON_INSECURE_CONFIG", False)
+        default_factory=lambda: _bool_prod_aware(
+            "FAIL_ON_INSECURE_CONFIG", default_dev=False, default_prod=True
+        )
     )
     default_user_id: str = field(
         default_factory=lambda: os.getenv("DEFAULT_USER_ID", "yanjiu")
@@ -183,17 +186,30 @@ class Settings:
         }
 
     def validate_startup(self) -> None:
-        """启动安全校验。生产环境弱配置直接拒启。"""
+        """启动安全校验。
+
+        生产环境（APP_ENV=prod/production）：弱配置默认拒启（fail_on_insecure_config 默认 True）。
+        开发环境：跳过校验，方便用明文密码快速启动。
+        """
         if not _is_prod_env():
             return
         problems: List[str] = []
-        if self.jwt_secret.startswith("change-me") or len(self.jwt_secret) < 16:
-            problems.append("JWT_SECRET 过弱（生产需 ≥16 字符且非默认值）")
+        # JWT secret：禁止默认值，长度 ≥ 32 字节（HS256 安全基线）
+        if self.jwt_secret.startswith("change-me") or len(self.jwt_secret) < 32:
+            problems.append(
+                "JWT_SECRET 过弱（生产需 ≥32 字节且非 change-me 默认值）。"
+                "生成：python -c \"import secrets;print(secrets.token_urlsafe(48))\""
+            )
+        # 生产禁止关闭认证
+        if not self.auth_enabled:
+            problems.append("AUTH_ENABLED=false 在生产环境被禁止（任何人可匿名访问）")
+        # 密码必须 bcrypt 哈希（拒明文 / sha256）
         for u in self.auth_users():
             pwd = u.get("password", "")
             if pwd and not pwd.startswith("bcrypt$") and not pwd.startswith("$2"):
                 problems.append(
-                    f"用户 {u.get('username')} 密码为明文（生产须 bcrypt$ 哈希）"
+                    f"用户 {u.get('username')} 密码非 bcrypt（生产禁止明文/sha256）。"
+                    "生成：python -c \"import bcrypt;print('bcrypt$'+bcrypt.hashpw(b'密码',bcrypt.gensalt()).decode())\""
                 )
         if problems:
             msg = "生产配置校验失败：\n  - " + "\n  - ".join(problems)

@@ -210,7 +210,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from api_view.agent_loader import agent_loader
-from api_view.auth import UserInfo, get_current_user
+from api_view.auth import UserInfo, get_current_user, require_permission
 
 router = APIRouter()
 
@@ -250,24 +250,35 @@ async def _collect_thread_markdown(thread_id: str) -> str:
 
 @router.post("/report/export")
 async def export_report(
-    body: ExportRequest, user: UserInfo = Depends(get_current_user)
+    body: ExportRequest,
+    user: UserInfo = Depends(require_permission("report:export")),
 ):
     """导出会话报告为 DOCX / PDF / Markdown。
 
     从会话展示消息拼接正文，渲染为目标格式，返回文件下载。
+    RBAC：需要 report:export 权限（admin/researcher 角色具备）。
     """
-    # 权限校验
+    # 所有权校验（结构化错误）
     if not agent_loader.assert_session_owner(body.thread_id, user.user_id):
-        raise HTTPException(status_code=403, detail="无权导出该会话")
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "SESSION_FORBIDDEN", "message": "无权导出该会话", "detail": body.thread_id},
+        )
 
     text = await _collect_thread_markdown(body.thread_id)
     if not text.strip():
-        raise HTTPException(status_code=404, detail="会话内容为空，无法导出")
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "SESSION_EMPTY", "message": "会话内容为空，无法导出", "detail": ""},
+        )
 
     try:
         content, media_type, ext = render_report(text, fmt=body.format)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"渲染失败：{e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "RENDER_FAILED", "message": "渲染失败", "detail": str(e)},
+        )
 
     from urllib.parse import quote
 

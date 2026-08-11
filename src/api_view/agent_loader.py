@@ -141,16 +141,29 @@ class AgentLoader:
         return local_store.thread_exists(thread_id)
 
     def assert_session_owner(self, thread_id: str, user_id: str) -> bool:
+        """校验 user_id 是否为 thread_id 的所有者。
+
+        安全策略（修复越权漏洞）：
+        - 已有 owner：直接比对。
+        - 无 owner 且 thread 存在：仅 default_user 一次性迁移认领（兼容历史无主会话），
+          其他用户一律拒绝。迁移打审计日志。
+        - 无 owner 且 thread 不存在：拒绝（不再自动认领新 thread，杜绝抢占）。
+        历史版本的"任意用户自动认领未存在 thread"已移除。
+        """
         owner = self.get_session_owner(thread_id)
-        if owner is None:
-            if self.thread_exists(thread_id):
-                if user_id == settings.default_user_id:
-                    self.bind_session_owner(thread_id, user_id)
-                    return True
-                return False
+        if owner is not None:
+            return owner == user_id
+        # 无 owner
+        if self.thread_exists(thread_id) and user_id == settings.default_user_id:
+            # 仅默认用户对历史无主会话做一次性迁移
             self.bind_session_owner(thread_id, user_id)
+            import logging
+            logging.getLogger(__name__).info(
+                "assert_session_owner: 迁移认领历史无主会话 thread=%s user=%s",
+                thread_id, user_id,
+            )
             return True
-        return owner == user_id
+        return False
 
     # ---------- 状态 / 消息 ----------
 
@@ -163,6 +176,34 @@ class AgentLoader:
         except Exception as e:
             print(f"[AgentLoader] 获取消息失败: {e}")
         return []
+
+    async def get_state_history(self, thread_id: str, limit: int = 100) -> List[Any]:
+        """获取会话历史消息（修复 chat.py 调用但未定义的 latent AttributeError）。
+
+        优先从 checkpointer 读取状态历史；失败时回退到 local_session_store 的展示消息。
+        """
+        config = self.create_config(thread_id)
+        try:
+            history = []
+            async for state in self.agent.aget_state_history(config, limit=limit):
+                if state and state.values:
+                    msgs = state.values.get("messages", [])
+                    if msgs:
+                        history.extend(msgs)
+            if history:
+                # 去重保序（checkpointer 可能返回多个 checkpoint 的快照）
+                seen, out = set(), []
+                for m in history:
+                    key = getattr(m, "id", None) or str(m)
+                    if key not in seen:
+                        seen.add(key)
+                        out.append(m)
+                return out
+        except Exception as e:
+            print(f"[AgentLoader] 获取状态历史失败，回退到 local_store: {e}")
+        # 回退：local_session_store 展示消息
+        msgs = local_store.load_messages(thread_id)
+        return msgs or []
 
     def get_session_updated_at(self, thread_id: str) -> datetime:
         return local_store.get_updated_at(thread_id)

@@ -12,17 +12,20 @@ export async function login(username, password) {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
+      // 解析结构化错误契约 {code, message, detail} 或 FastAPI 默认 {detail: "..."/{msg}}
       const detail = err.detail
-      throw new Error(
-        typeof detail === 'string' ? detail : (detail?.msg || '登录失败')
-      )
+      const message =
+        typeof detail === 'string' ? detail :
+        (detail && typeof detail === 'object' ? (detail.message || detail.msg) : null) ||
+        '登录失败'
+      throw new Error(message)
     }
     const data = await response.json()
     setAuth(data.access_token, data.user)
     return data
   } catch (e) {
     if (e.name === 'AbortError') {
-      throw new Error('登录超时：后端未响应，请确认 API 已启动（8091）')
+      throw new Error('服务暂不可用，请确认科研助手服务已启动后重试')
     }
     throw e
   } finally {
