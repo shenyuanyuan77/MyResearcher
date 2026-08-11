@@ -26,10 +26,15 @@ from mcp_server.tools.academic import (
     author_profile as _author_profile,
     cross_search as _cross_search,
     paper_by_doi as _paper_by_doi,
+    paper_by_dois as _paper_by_dois,
     paper_distill as _paper_distill,
     paper_search as _paper_search,
+    paper_cited_by as _paper_cited_by,
+    paper_references as _paper_references,
+    related_papers as _related_papers,
     topic_radar as _topic_radar,
 )
+from mcp_server.tools.cn_sources import paper_search_cn as _paper_search_cn
 
 
 @asynccontextmanager
@@ -73,19 +78,39 @@ def register_academic_tools(server: FastMCP) -> None:
 
     @server.tool(name="paper_search")
     async def paper_search(
-        query: str, rows: int = 10, year_from: int = 0
+        query: str,
+        rows: int = 10,
+        year_from: int = 0,
+        year_to: int = 0,
+        pub_type: str = "",
+        oa_only: bool = False,
+        min_citations: int = 0,
+        sort: str = "cited",
+        exclude_retracted: bool = True,
     ) -> dict:
         """
         ②【情报提纯·核心干货引擎】按主题/关键词召回真实学术文献（多源归并去重）。
-        每篇均带真实 DOI 与 doi_url，可点击溯源。用于文献检索与综述素材收集。
+        每篇均带真实 DOI 与 doi_url，可点击溯源。撤稿论文默认过滤。
 
         Args:
-            query: 检索词/主题，如「retrieval augmented generation survey」
+            query: 检索词/主题
             rows: 召回篇数，默认10，上限40
-            year_from: 仅保留该年及之后发表的（0 表示不限制）
+            year_from: 起始年份（0=不限）
+            year_to: 截止年份（0=不限）
+            pub_type: 文献类型过滤：article/conference/preprint/book/chapter（空=不限）
+            oa_only: 仅返回开放获取文献（默认 False）
+            min_citations: 最低引用数过滤（0=不限）
+            sort: 排序：cited（引用数，默认）/ newest（新近）/ relevance（相关）
+            exclude_retracted: 过滤撤稿论文（默认 True）
         """
         yf = int(year_from) if year_from else None
-        return await _paper_search(query, rows=rows, year_from=yf)
+        yt = int(year_to) if year_to else None
+        mc = int(min_citations) if min_citations else None
+        return await _paper_search(
+            query, rows=rows, year_from=yf, year_to=yt,
+            pub_type=(pub_type or None), oa_only=bool(oa_only),
+            min_citations=mc, sort=sort, exclude_retracted=bool(exclude_retracted),
+        )
 
     @server.tool(name="paper_by_doi")
     async def paper_by_doi(doi: str) -> dict:
@@ -133,6 +158,68 @@ def register_academic_tools(server: FastMCP) -> None:
             limit: 召回交叉工作数，默认8，上限20
         """
         return await _cross_search(domain_a, domain_b, limit=limit)
+
+    @server.tool(name="paper_by_dois")
+    async def paper_by_dois(dois: list[str]) -> dict:
+        """
+        ②【情报提纯·批量 DOI 核验】输入 DOI 列表，批量返回真实文献信息。
+        用于从 EndNote/Mendeley 导出的 DOI 列表批量核验引用真实性。
+
+        Args:
+            dois: DOI 数组，如 ["10.1038/xxx", "10.1109/yyy"]
+        """
+        return await _paper_by_dois(dois)
+
+    @server.tool(name="paper_cited_by")
+    async def paper_cited_by(identifier: str, rows: int = 10) -> dict:
+        """
+        ②【情报提纯·施引文献】查找谁引用了这篇论文（OpenAlex）。
+        用于追踪某篇论文的后续影响。
+
+        Args:
+            identifier: DOI（如 10.1038/xxx）或 OpenAlex ID（如 W123456789）
+            rows: 返回篇数，默认10
+        """
+        return await _paper_cited_by(identifier, rows=rows)
+
+    @server.tool(name="paper_references")
+    async def paper_references(identifier: str, rows: int = 10) -> dict:
+        """
+        ②【情报提纯·参考文献】查找这篇论文引用了谁（OpenAlex）。
+        用于深入理解论文的理论基础。
+
+        Args:
+            identifier: DOI 或 OpenAlex ID
+            rows: 返回篇数，默认10
+        """
+        return await _paper_references(identifier, rows=rows)
+
+    @server.tool(name="related_papers")
+    async def related_papers(identifier: str, rows: int = 10) -> dict:
+        """
+        ②【情报提纯·相关文献】查找 OpenAlex 标注的相关论文。
+        用于扩展阅读范围。
+
+        Args:
+            identifier: DOI 或 OpenAlex ID
+            rows: 返回篇数，默认10
+        """
+        return await _related_papers(identifier, rows=rows)
+
+    @server.tool(name="paper_search_cn")
+    async def paper_search_cn(query: str, rows: int = 10, year_from: int = 0, translate: bool = True) -> dict:
+        """
+        ②【情报提纯·中文文献检索】中文关键词召回中文学术文献（S2/OpenAlex CJK）。
+        可选自动翻译为英文补充检索三源。CNKI/万方需授权配置（见 .env CNKI_API_TOKEN）。
+
+        Args:
+            query: 中文检索词，如「联邦学习 医疗影像」
+            rows: 召回篇数，默认10
+            year_from: 起始年份（0=不限）
+            translate: 是否翻译为英文补充检索（默认 True）
+        """
+        yf = int(year_from) if year_from else None
+        return await _paper_search_cn(query, rows=rows, year_from=yf, translate=bool(translate))
 
 
 register_academic_tools(mcp)

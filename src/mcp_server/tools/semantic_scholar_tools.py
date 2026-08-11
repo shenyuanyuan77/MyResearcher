@@ -11,6 +11,7 @@ from typing import Any
 
 from mcp_server.tools.unified import (
     S2_BASE,
+    S2_API_KEY,
     Paper,
     fetch_json,
     cache_get,
@@ -49,9 +50,16 @@ def _parse_s2_paper(p: dict[str, Any]) -> Paper:
     )
 
 
-async def s2_search(query: str, limit: int = 10, year_from: int | None = None) -> list[Paper]:
+async def s2_search(
+    query: str,
+    limit: int = 10,
+    year_from: int | None = None,
+    year_to: int | None = None,
+    pub_type: str | None = None,
+    oa_only: bool = False,
+) -> list[Paper]:
     limit = max(1, min(int(limit or 10), 40))
-    cache_key = f"s2_search:{query}:{limit}:{year_from}"
+    cache_key = f"s2_search:{query}:{limit}:{year_from}:{year_to}:{pub_type}:{oa_only}"
     cached = cache_get(cache_key)
     if cached is not None:
         return cached
@@ -60,9 +68,21 @@ async def s2_search(query: str, limit: int = 10, year_from: int | None = None) -
         "limit": limit,
         "fields": _S2_FIELDS,
     }
-    if year_from:
+    if year_from and year_to:
+        params["year"] = f"{year_from}-{year_to}"
+    elif year_from:
         params["year"] = f"{year_from}-"
-    data = await fetch_json(f"{S2_BASE}/paper/search", params=params)
+    elif year_to:
+        params["year"] = f"-{year_to}"
+    if pub_type:
+        # S2 publicationTypes 过滤
+        params["publicationTypes"] = pub_type
+    if oa_only:
+        params["openAccessPdf"] = ""
+    headers: dict[str, str] = {}
+    if S2_API_KEY:
+        headers["x-api-key"] = S2_API_KEY
+    data = await fetch_json(f"{S2_BASE}/paper/search", params=params, headers=headers, source="s2")
     if not data:
         return []
     papers = [_parse_s2_paper(p) for p in (data.get("data") or [])]
@@ -80,7 +100,10 @@ async def s2_cross_search(domain_a: str, domain_b: str, limit: int = 8) -> list[
     if cached is not None:
         return cached
     params = {"query": query, "limit": limit, "fields": _S2_FIELDS}
-    data = await fetch_json(f"{S2_BASE}/paper/search", params=params)
+    headers: dict[str, str] = {}
+    if S2_API_KEY:
+        headers["x-api-key"] = S2_API_KEY
+    data = await fetch_json(f"{S2_BASE}/paper/search", params=params, headers=headers, source="s2")
     if not data:
         return []
     papers = [_parse_s2_paper(p) for p in (data.get("data") or [])]
