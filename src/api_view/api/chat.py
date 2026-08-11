@@ -572,12 +572,12 @@ async def stream_chat_response(
     同时累积完整的展示消息列表（包含子代理消息），在流结束后持久化。
     """
     from agent.settings import settings
-    from agent.schema import ResearchContext
+    from agent.schema import load_research_context
 
     uid = user_id or settings.default_user_id
     uname = username or settings.default_username
-    # context_schema=ResearchContext；显式构造以确保字段齐全
-    context = ResearchContext(
+    # 从持久化 Store 加载用户偏好（伴随式成长：research_direction/cognitive_level 跨会话保留）
+    context = await load_research_context(
         user_id=uid,
         username=uname,
         thread_id=thread_id,

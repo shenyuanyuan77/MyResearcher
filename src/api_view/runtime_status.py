@@ -15,6 +15,8 @@ class RuntimeStatus:
     mcp_academic_ok: bool = False
     # checkpoint 后端：sqlite | memory | unknown
     checkpoint_backend: str = "unknown"
+    # 用户偏好 Store 后端：sqlite | memory | unknown（伴随式成长持久化）
+    store_backend: str = "unknown"
 
 
 runtime_status = RuntimeStatus()

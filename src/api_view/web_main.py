@@ -53,12 +53,25 @@ async def lifespan(app: FastAPI):
     print(f"正在启动 {API_TITLE}...")
     print("API 立即可用（/api/auth、/health）；Agent 后台加载中")
     print("=" * 50)
+    # 初始化持久化 Store（伴随式成长；失败降级内存，不阻塞启动）
+    try:
+        from agent.config import ensure_store
+        await ensure_store()
+    except Exception as e:
+        print(f"[Startup] Store 初始化跳过：{e}")
     task = asyncio.create_task(_init_agent_background())
     app.state.agent_init_task = task
     yield
     print("=" * 50)
     print(f"正在关闭 {API_TITLE}...")
     print("=" * 50)
+    # 关闭 Store 连接（同步 sqlite3）
+    try:
+        from agent.config import _store_conn
+        if _store_conn is not None:
+            _store_conn.close()
+    except Exception:
+        pass
     if not task.done():
         task.cancel()
         try:

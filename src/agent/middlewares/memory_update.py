@@ -266,16 +266,15 @@ class MemoryUpdateMiddleware(AgentMiddleware):
             )
 
             # 6. 从 store 读取当前偏好
-            store = getattr(runtime, "store", None)
-            if store is None:
-                logger.warning("MemoryUpdateMiddleware: runtime.store 不可用")
-                return None
+            # 注：用 store_aget/aput（asyncio.to_thread 包装同步 Store），
+            # 避免 AsyncSqliteStore 的事务陷阱
+            from agent.config import store_aget as _store_aget, store_aput as _store_aput
 
             namespace = (user_id,)
             key = "preferences"
 
             try:
-                item = await store.aget(namespace, key)
+                item = await _store_aget(namespace, key)
             except Exception:
                 item = None
 
@@ -311,7 +310,7 @@ class MemoryUpdateMiddleware(AgentMiddleware):
                 "created_at": current_prefs.get("_created_at") or datetime.now(timezone.utc).isoformat(),
                 "modified_at": datetime.now(timezone.utc).isoformat(),
             }
-            await store.aput(namespace, key, file_value)
+            await _store_aput(namespace, key, file_value)
 
             logger.info(
                 f"MemoryUpdateMiddleware: 已更新 {user_id} 的学术记忆 "

@@ -113,7 +113,9 @@ async def create_main_agent(config: Optional[RunnableConfig] = None):
 
     # ---- Phase 4: 中间件栈 ----
     logger.info("Phase 4: 构建中间件栈...")
-    # StoreBackend 摘要：无沙箱，用 None backend（摘要中间件仅做历史压缩）
+    # 摘要中间件：backend=None 时仅做内存级历史压缩。
+    # 完整对话状态由 SQLite checkpointer 持久化；用户偏好/伴随式成长由
+    # MemoryUpdateMiddleware + STORE(SqliteStore) 持久化，与此独立。
     try:
         summarization_mw = build_summarization_middleware(None, SUMMARY_MODEL)
     except Exception:

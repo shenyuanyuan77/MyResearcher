@@ -26,6 +26,49 @@ class ResearchContext:
     workspace: Optional[str] = None
 
 
+async def load_research_context(
+    user_id: str,
+    username: str,
+    thread_id: Optional[str] = None,
+    workspace: Optional[str] = None,
+    roles: Optional[List[str]] = None,
+) -> ResearchContext:
+    """从持久化 Store 加载用户偏好，回填 ResearchContext（伴随式成长）。
+
+    memory_update.py 写入的 research_direction/cognitive_level/preferred_language/
+    research_topics 在此处读回，注入每次对话——实现跨会话知识积累。
+    """
+    ctx = ResearchContext(
+        user_id=user_id,
+        username=username,
+        thread_id=thread_id,
+        workspace=workspace,
+        roles=roles or [],
+    )
+    try:
+        from agent.config import store_aget
+        import json
+        item = await store_aget((user_id,), "preferences")
+        if item is not None and hasattr(item, "value"):
+            value = item.value
+            prefs = None
+            if isinstance(value, dict):
+                content = value.get("content", value)
+                if isinstance(content, dict):
+                    prefs = content
+                elif isinstance(content, (str, list)):
+                    try:
+                        prefs = json.loads("".join(content) if isinstance(content, list) else content)
+                    except Exception:
+                        prefs = None
+            if isinstance(prefs, dict):
+                ctx.cognitive_level = prefs.get("cognitive_level") or None
+                ctx.research_direction = prefs.get("research_direction") or None
+    except Exception:
+        pass  # Store 不可用时降级为空偏好
+    return ctx
+
+
 @dataclass
 class UserPreferences:
     """用户偏好，存于长期记忆文件 /memories/{user_id}/preferences.md。"""
