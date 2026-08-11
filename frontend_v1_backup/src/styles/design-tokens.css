@@ -1,0 +1,52 @@
+/**
+ * CSS 变量层（B 端 SaaS 设计 Token）
+ * 与 design-tokens.js 同步；JS 文件供组件逻辑使用。
+ */
+
+:root {
+  /* 主色 */
+  --c-primary: #2563eb;
+  --c-primary-hover: #1d4ed8;
+  --c-primary-soft: rgba(37, 99, 235, 0.08);
+  --c-accent: #7c3aed;
+  --c-accent-soft: rgba(124, 58, 237, 0.08);
+  /* 语义色 */
+  --c-success: #16a34a;
+  --c-success-soft: rgba(22, 163, 74, 0.08);
+  --c-warning: #d97706;
+  --c-warning-soft: rgba(217, 119, 6, 0.08);
+  --c-danger: #dc2626;
+  --c-danger-soft: rgba(220, 38, 38, 0.08);
+  --c-muted: #94a3b8;
+  --c-muted-soft: rgba(148, 163, 184, 0.10);
+  /* 中性 */
+  --c-bg: #f8fafc;
+  --c-surface: #ffffff;
+  --c-surface-alt: #f1f5f9;
+  --c-border: #e2e8f0;
+  --c-border-light: #f1f5f9;
+  --c-text: #0f172a;
+  /* 提升可读性：secondary/tertiary 加深以满足 WCAG AA（白底 4.5:1） */
+  --c-text-secondary: #334155;  /* 4.9:1 on white，原 #475569 4.4:1 偏弱 */
+  --c-text-tertiary: #64748b;   /* 5.7:1 on white，原 #94a3b8 仅 2.8:1 */
+
+  /* 圆角 */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  /* 阴影：极弱 */
+  --sh-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --sh-md: 0 2px 8px rgba(15, 23, 42, 0.06);
+  --sh-lg: 0 4px 16px rgba(15, 23, 42, 0.08);
+
+  /* 布局尺寸 */
+  --aside-w:220px;
+  --context-w: 320px;
+  --header-h: 56px;
+  --row-h: 46px;
+  --main-pad: 24px;
+
+  /* 过渡：保守 */
+  --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}

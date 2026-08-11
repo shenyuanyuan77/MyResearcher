@@ -1,0 +1,135 @@
+/* Apple/iOS design tokens — aligned to reference PNG */
+:root {
+  color-scheme: light dark;
+  --c-primary: #007AFF;
+  --c-primary-hover: #0064d1;
+  --c-primary-pressed: #004fa3;
+  --c-primary-soft: rgba(0, 122, 255, .12);
+  --c-primary-soft-strong: rgba(0, 122, 255, .20);
+  --c-accent: #7c3aed;
+  --c-accent-soft: rgba(124, 58, 237, .10);
+  --c-success: #1a7f37;
+  --c-success-bright: #30d158;
+  --c-success-soft: rgba(48, 209, 88, .14);
+  --c-warning: #b25000;
+  --c-warning-bright: #ff9f0a;
+  --c-warning-soft: rgba(255, 159, 10, .15);
+  --c-danger: #c1271f;
+  --c-danger-bright: #ff453a;
+  --c-danger-soft: rgba(255, 69, 58, .13);
+  --c-muted: #94a3b8;
+  --c-muted-soft: rgba(148, 163, 184, .12);
+
+  --c-bg: #eef1f6;
+  --c-surface: #ffffff;
+  --c-surface-2: #fbfbfd;
+  --c-surface-alt: #f5f6fa;
+  --c-surface-elev: #ffffff;
+  --c-border: rgba(15, 23, 42, .08);
+  --c-border-light: rgba(15, 23, 42, .04);
+  --c-border-strong: rgba(15, 23, 42, .12);
+  --c-text: #1d1d1f;
+  --c-text-secondary: #5c5c64;
+  --c-text-tertiary: #8e8e96;
+  --c-text-on-primary: #fff;
+  --c-overlay: rgba(15, 23, 42, .28);
+  --c-user-bubble: #edf3ff;
+  --c-shimmer: linear-gradient(90deg, var(--c-surface-alt) 25%, #ececf1 37%, var(--c-surface-alt) 63%);
+
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-2xl: 24px;
+  --r-window: 28px;
+  --r-pill: 999px;
+
+  --sh-xs: 0 1px 2px rgba(15, 23, 42, .04);
+  --sh-sm: 0 2px 8px rgba(15, 23, 42, .05);
+  --sh-md: 0 8px 24px rgba(15, 23, 42, .08);
+  --sh-lg: 0 16px 40px rgba(15, 23, 42, .10);
+  --sh-xl: 0 28px 80px rgba(15, 23, 42, .14);
+  --sh-primary: 0 8px 24px rgba(0, 122, 255, .28);
+
+  --glass-bg: rgba(255, 255, 255, .78);
+  --glass-bg-strong: rgba(255, 255, 255, .90);
+  --glass-blur: saturate(180%) blur(20px);
+
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --fz-mini: 11px;
+  --fz-caption: 13px;
+  --fz-body: 14px;
+  --fz-h3: 16px;
+  --fz-h2: 20px;
+  --fz-h1: 24px;
+  --fz-hero: 32px;
+  --tracking-tight: -.03em;
+  --tracking-display: -.02em;
+  --tracking-body: -.01em;
+  --tracking-caption: 0;
+  --tracking-caps: .04em;
+  --lh-tight: 1.2;
+  --lh-snug: 1.4;
+  --lh-normal: 1.55;
+  --lh-loose: 1.7;
+
+  --aside-w: 280px;
+  --aside-collapsed-w: 72px;
+  --context-w: 320px;
+  --header-h: 72px;
+  --row-h: 46px;
+  --main-pad: 28px;
+  --content-max: 920px;
+  --window-pad: 18px;
+
+  --ease-ios: cubic-bezier(.32, .72, 0, 1);
+  --ease-spring: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring-strong: cubic-bezier(.34, 1.56, .64, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --dur-fast: .16s;
+  --dur-normal: .28s;
+  --dur-slow: .45s;
+  --transition: var(--dur-normal) var(--ease-spring);
+  --transition-fast: var(--dur-fast) var(--ease-ios);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-primary: #0a84ff;
+    --c-primary-hover: #409cff;
+    --c-primary-pressed: #2670cc;
+    --c-primary-soft: rgba(10, 132, 255, .18);
+    --c-primary-soft-strong: rgba(10, 132, 255, .28);
+    --c-accent: #a78bfa;
+    --c-accent-soft: rgba(167, 139, 250, .18);
+    --c-success: #30d158;
+    --c-success-bright: #30d158;
+    --c-success-soft: rgba(48, 209, 88, .18);
+    --c-warning: #ff9f0a;
+    --c-warning-bright: #ff9f0a;
+    --c-warning-soft: rgba(255, 159, 10, .18);
+    --c-danger: #ff453a;
+    --c-danger-bright: #ff453a;
+    --c-danger-soft: rgba(255, 69, 58, .18);
+    --c-muted: #8e8e93;
+    --c-muted-soft: rgba(142, 142, 147, .16);
+    --c-bg: #0b0b0f;
+    --c-surface: #1c1c1e;
+    --c-surface-2: #2c2c2e;
+    --c-surface-alt: #2c2c2e;
+    --c-surface-elev: #2c2c2e;
+    --c-border: rgba(255, 255, 255, .08);
+    --c-border-light: rgba(255, 255, 255, .04);
+    --c-border-strong: rgba(255, 255, 255, .14);
+    --c-text: #f5f5f7;
+    --c-text-secondary: #d1d1d6;
+    --c-text-tertiary: #8e8e93;
+    --c-user-bubble: rgba(10, 132, 255, .16);
+    --c-overlay: rgba(0, 0, 0, .55);
+    --glass-bg: rgba(28, 28, 30, .72);
+    --glass-bg-strong: rgba(28, 28, 30, .88);
+  }
+}

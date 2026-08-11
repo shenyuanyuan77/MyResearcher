@@ -1,0 +1,44 @@
+# 研途智探AI 网页版 · Python 依赖
+# 精简自采购助手参考工程（去 opensandbox / mongo / pywin32）
+
+# ---- LangGraph + deepagents（Agent 运行时）----
+langgraph>=1.1.0
+langgraph-checkpoint-sqlite>=2.0.0
+aiosqlite>=0.20.0
+langchain>=1.0.0
+langchain-core>=1.0.0
+langchain-openai>=1.0.0
+langchain-mcp-adapters>=0.2.0
+deepagents>=0.4.0
+
+# ---- LLM / Web 搜索 SDK ----
+openai>=1.50.0
+zai>=0.0.2
+
+# ---- MCP 服务端 ----
+fastmcp>=0.8.0
+mcp>=1.0.0
+
+# ---- Web 框架 ----
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+sse-starlette>=2.1.0
+python-multipart>=0.0.9
+
+# ---- 工具 / 安全 ----
+httpx>=0.27.0
+pydantic>=2.9.0
+pydantic-settings>=2.5.0
+PyJWT>=2.9.0
+bcrypt>=4.0.0
+python-dotenv>=1.0.1
+PyYAML>=6.0
+tenacity>=8.5.0
+loguru>=0.7.0
+markdown-it-py>=3.0
+
+# ---- 报告导出（P5：Word/PDF/Markdown）----
+python-docx>=1.1.0
+markdown>=3.5
+xhtml2pdf>=0.2.16
+reportlab>=4.0

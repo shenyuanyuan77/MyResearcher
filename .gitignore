@@ -1,0 +1,31 @@
+# 构建产物 / 依赖
+frontend/node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 本地数据 / 日志
+logs/
+data/checkpoints.sqlite
+data/checkpoints.sqlite-*
+data/local_sessions/
+
+# 环境
+.env
+
+# 参考工程（不纳入版本）
+_ref_caigou/
+_ref_caigou_v2/
+
+# 备份 / 本地敏感
+*.bak
+*.local.bak
+.env.local.bak
+.env.local
+
+# 持久化数据（SQLite 等）
+data/*.sqlite
+data/*.sqlite-*
+data/*.db
