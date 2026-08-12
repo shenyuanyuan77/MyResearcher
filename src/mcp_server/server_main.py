@@ -35,6 +35,7 @@ from mcp_server.tools.academic import (
     topic_radar as _topic_radar,
 )
 from mcp_server.tools.cn_sources import paper_search_cn as _paper_search_cn
+from mcp_server.tools.artifact_sources import dataset_search as _dataset_search, code_search as _code_search
 
 
 @asynccontextmanager
@@ -220,6 +221,30 @@ def register_academic_tools(server: FastMCP) -> None:
         """
         yf = int(year_from) if year_from else None
         return await _paper_search_cn(query, rows=rows, year_from=yf, translate=bool(translate))
+
+    @server.tool(name="dataset_search")
+    async def dataset_search(query: str, rows: int = 10) -> dict:
+        """
+        ②【情报提纯·数据集检索】检索公开数据集（Zenodo + PapersWithCode）。
+        用于找实验所需的公开数据集。
+
+        Args:
+            query: 数据集关键词，如「image classification」「medical imaging」
+            rows: 召回数，默认10
+        """
+        return await _dataset_search(query, rows=rows)
+
+    @server.tool(name="code_search")
+    async def code_search(query: str, rows: int = 10) -> dict:
+        """
+        ②【情报提纯·代码检索】检索开源代码实现（GitHub + PapersWithCode）。
+        用于找论文的开源实现或 baseline 代码。
+
+        Args:
+            query: 代码关键词，如「transformer pytorch」「resnet implementation」
+            rows: 召回数，默认10
+        """
+        return await _code_search(query, rows=rows)
 
 
 register_academic_tools(mcp)
