@@ -353,6 +353,17 @@ async def paper_distill(identifier: str) -> dict[str, Any]:
     # 用结构化字段重建 Paper 以调用国标格式化器
     paper_obj = Paper(**{k: v for k, v in paper.items() if k in Paper.__dataclass_fields__})
     warning = "⚠️ 该论文已被撤稿，引用前请核实。" if is_retracted else ""
+
+    # PDF 全文精读：有 oa_url 时优先用全文（深度远超摘要）
+    full_text_distill = None
+    oa_url = paper.get("oa_url") or ""
+    if oa_url:
+        try:
+            from mcp_server.tools.pdf_distill import distill_with_full_text
+            full_text_distill = await distill_with_full_text(oa_url, abstract)
+        except Exception:
+            full_text_distill = None
+
     return {
         "ok": True,
         "paper": paper,
@@ -368,9 +379,13 @@ async def paper_distill(identifier: str) -> dict[str, Any]:
             "abstract": abstract or abstract_note,
             "is_retracted": is_retracted,
             "quotation_hint": format_paper(paper_obj, "gbt7714"),
+            "full_text_available": bool(full_text_distill and full_text_distill.get("available")),
+            "quotable_sentences": (full_text_distill or {}).get("quotable_sentences", []),
+            "sections": (full_text_distill or {}).get("sections", {}),
         },
+        "full_text_distill": full_text_distill,
         "warning": warning,
-        "note": "摘要/数据均来自公开学术源，无虚构。distill.quotation_hint 为 GB/T 7714 格式。",
+        "note": "摘要/数据均来自公开学术源，无虚构。有 OA 全文时已用 pymupdf 抽取全文精读（quotable_sentences 为可引用句）。",
     }
 
 
