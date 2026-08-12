@@ -13,6 +13,8 @@
         @select-session="handleSelectSession"
         @new-chat="handleNewChat"
         @delete-session="handleDeleteSession"
+        @rename-session="handleRenameSession"
+        @open-settings="handleOpenSettings"
         @logout="handleLogout"
         @close-drawer="sidebarOpen = false"
         @toggle-collapse="toggleSidebarCollapsed"
@@ -370,6 +372,28 @@ async function handleDeleteSession(threadId) {
   } catch (error) {
     alert(`删除会话失败：${error.message}`)
   }
+}
+
+async function handleRenameSession({ threadId, title }) {
+  try {
+    const { apiFetch, extractApiError } = await import('./api/http.js')
+    const resp = await apiFetch(`/api/history/${threadId}/title`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    })
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}))
+      throw new Error(extractApiError(body, '重命名失败'))
+    }
+    await loadSessions()
+  } catch (error) {
+    alert(`重命名会话失败：${error.message}`)
+  }
+}
+
+function handleOpenSettings() {
+  // 偏好设置面板（Phase 2 完整实现；本轮占位提示）
+  alert('偏好设置面板即将上线。当前研究方向/认知等级已随对话自动学习（伴随式成长）。')
 }
 function handleStop() { abortController?.abort() }
 

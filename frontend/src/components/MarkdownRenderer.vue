@@ -189,32 +189,33 @@ function enhanceCitations() {
     while ((n = walker.nextNode())) nodes.push(n)
     for (const node of nodes) {
       const txt = node.nodeValue || ''
-      if (!/\[\d{1,3}\]/.test(txt)) continue
+      if (!/\[\d{1,4}\]/.test(txt)) continue
       const frag = document.createDocumentFragment()
       let last = 0
-      const re = /\[(\d{1,3})\]/g
+      const re = /\[(\d{1,4})\]/g
       let m
       while ((m = re.exec(txt))) {
-        if (m.index > last) frag.appendChild(document.createTextNode(txt.slice(last, m.index)))
         const num = parseInt(m[1], 10)
+        // 仅当 num 在 citeMap 中才转为可点击角标；否则保留原文（避免非引用 [123] 误转）
+        const c = citeMap[num]
+        if (!c) continue
+        if (m.index > last) frag.appendChild(document.createTextNode(txt.slice(last, m.index)))
         const sup = document.createElement('sup')
         sup.className = 'cite-ref'
         sup.textContent = `[${num}]`
-        const c = citeMap[num]
-        if (c) {
-          const auth = Array.isArray(c.authors) && c.authors.length
-            ? (c.authors.slice(0, 2).join(', ') + (c.authors.length > 2 ? ' 等' : ''))
-            : '佚名'
-          sup.title = `${c.title || '（无标题）'}\n${auth}${c.year ? ' (' + c.year + ')' : ''}${c.venue ? ', ' + c.venue : ''}${c.doi_url ? '\n' + c.doi_url : ''}`
-          sup.dataset.idx = String(num)
-          if (c.doi_url) {
-            sup.style.cursor = 'pointer'
-            sup.addEventListener('click', () => window.open(c.doi_url, '_blank', 'noopener'))
-          }
+        const auth = Array.isArray(c.authors) && c.authors.length
+          ? (c.authors.slice(0, 2).join(', ') + (c.authors.length > 2 ? ' 等' : ''))
+          : '佚名'
+        sup.title = `${c.title || '（无标题）'}\n${auth}${c.year ? ' (' + c.year + ')' : ''}${c.venue ? ', ' + c.venue : ''}${c.doi_url ? '\n' + c.doi_url : ''}`
+        sup.dataset.idx = String(num)
+        if (c.doi_url) {
+          sup.style.cursor = 'pointer'
+          sup.addEventListener('click', () => window.open(c.doi_url, '_blank', 'noopener'))
         }
         frag.appendChild(sup)
         last = m.index + m[0].length
       }
+      if (last === 0) continue  // 无匹配，跳过替换
       if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)))
       node.parentNode.replaceChild(frag, node)
     }

@@ -5,7 +5,19 @@
       <span class="banner-title">{{ titleText }}</span>
     </div>
     <p class="banner-desc">{{ descText }}</p>
-    <div class="banner-actions">
+
+    <!-- HITL 审批：显示同意/拒绝按钮 -->
+    <div v-if="isApproval" class="banner-actions approval-actions">
+      <button class="banner-approve" :disabled="submitting" @click="approve">
+        {{ submitting ? '处理中…' : '✓ 同意执行' }}
+      </button>
+      <button class="banner-reject" :disabled="submitting" @click="reject">
+        {{ submitting ? '处理中…' : '✗ 拒绝' }}
+      </button>
+    </div>
+
+    <!-- 信息补充：文本输入 -->
+    <div v-else class="banner-actions">
       <input
         v-model="inputText"
         class="banner-input"
@@ -30,10 +42,24 @@ const emit = defineEmits(['resume'])
 
 const inputText = ref('')
 
-const titleText = computed(() => props.interruptData?.title || '需要你的输入')
+// HITL 审批类型判断（后端 emit hitl_approval / interrupt_type 含 approval）
+const isApproval = computed(() => {
+  const d = props.interruptData || {}
+  return d.interrupt_type === 'hitl_approval' || d.type === 'hitl_approval' || !!d.action_requests
+})
+
+const titleText = computed(() => {
+  const d = props.interruptData || {}
+  if (isApproval.value) return d.title || '需要你的审批'
+  return d.title || '需要你的输入'
+})
 const descText = computed(() => {
   const d = props.interruptData || {}
   if (d.message) return d.message
+  if (isApproval.value && Array.isArray(d.action_requests)) {
+    const names = d.action_requests.map(a => a.name || a.tool).join(', ')
+    return `Agent 请求执行：${names}。请确认是否允许。`
+  }
   if (Array.isArray(d.missing_fields) && d.missing_fields.length) {
     return '请补充以下信息：' + d.missing_fields.join('、')
   }
@@ -46,6 +72,16 @@ function submit() {
   if (!val || props.submitting) return
   emit('resume', { type: 'text', value: val })
   inputText.value = ''
+}
+
+function approve() {
+  if (props.submitting) return
+  emit('resume', { decisions: [{ type: 'approve' }] })
+}
+
+function reject() {
+  if (props.submitting) return
+  emit('resume', { decisions: [{ type: 'reject' }] })
 }
 </script>
 
@@ -76,4 +112,20 @@ function submit() {
 }
 .banner-submit:hover:not(:disabled) { background: var(--c-primary-hover); }
 .banner-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+/* HITL 审批按钮 */
+.approval-actions { gap: 10px; }
+.banner-approve {
+  border: none; background: var(--c-success, #34c759); color: #fff;
+  border-radius: var(--r-md); padding: 10px 20px; font-size: var(--fz-caption); font-weight: 600;
+  cursor: pointer; transition: background var(--transition-fast);
+}
+.banner-approve:hover:not(:disabled) { filter: brightness(1.1); }
+.banner-reject {
+  border: 1px solid var(--c-danger); background: transparent; color: var(--c-danger);
+  border-radius: var(--r-md); padding: 10px 20px; font-size: var(--fz-caption); font-weight: 600;
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.banner-reject:hover:not(:disabled) { background: var(--c-danger-soft); }
+.banner-approve:disabled, .banner-reject:disabled { opacity: .6; cursor: not-allowed; }
 </style>

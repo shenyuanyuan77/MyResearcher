@@ -37,6 +37,17 @@
         <MarkdownRenderer :content="sanitizeAssistantContent(message.content)" />
         <span v-if="isStreaming && message.content" class="typing-cursor" aria-hidden="true"></span>
       </div>
+      <!-- 助手消息操作栏（复制 / 引用回复；仅非流式时显示） -->
+      <div v-if="!showThinking && !isStreaming && message.content" class="message-actions">
+        <button class="msg-action-btn" @click="copyContent" :title="copied ? '已复制' : '复制'">
+          <AppIcon :name="copied ? 'check' : 'copy'" :size="13" />
+          <span>{{ copied ? '已复制' : '复制' }}</span>
+        </button>
+        <button class="msg-action-btn" @click="$emit('quote-reply', message)" title="引用回复">
+          <AppIcon name="reply" :size="13" />
+          <span>引用</span>
+        </button>
+      </div>
       <div v-if="!showThinking" class="message-time">{{ formatMessageTime(message) }}</div>
     </div>
   </div>
@@ -124,6 +135,24 @@
       </div>
     </div>
   </div>
+
+  <!-- 图片 lightbox 预览（替代 window.open，支持 a11y dialog） -->
+  <transition name="fade">
+    <div
+      v-if="lightboxSrc"
+      class="lightbox-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="图片预览"
+      @click="closeLightbox"
+      @keydown.esc="closeLightbox"
+      tabindex="-1"
+      ref="lightboxOverlay"
+    >
+      <img :src="lightboxSrc" :alt="lightboxAlt" class="lightbox-img" @click.stop />
+      <button class="lightbox-close" @click="closeLightbox" aria-label="关闭">×</button>
+    </div>
+  </transition>
 </template>
 
 <script setup>
@@ -136,7 +165,45 @@ const props = defineProps({
   isStreaming: { type: Boolean, default: false },
 })
 
-const THINKING_STEPS = [
+defineEmits(['quote-reply'])
+
+// 复制状态
+const copied = ref(false)
+async function copyContent() {
+  try {
+    const text = props.message.content || ''
+    await navigator.clipboard.writeText(text)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    // fallback
+    const ta = document.createElement('textarea')
+    ta.value = props.message.content || ''
+    document.body.appendChild(ta)
+    ta.select()
+    try { document.execCommand('copy') } catch {}
+    document.body.removeChild(ta)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  }
+}
+
+// 思考文案：根据当前工具调用动态匹配，不命中走通用阶段
+const TOOL_THINKING_MAP = {
+  topic_radar: ['正在检索领域热度趋势…', '正在分析关键词与检索式…'],
+  paper_search: ['正在检索权威学术数据库…', '正在多源归并文献并锚定 DOI…'],
+  paper_search_cn: ['正在检索中文学术文献…', '正在归并中文与英文结果…'],
+  paper_by_doi: ['正在 CrossRef 校验 DOI…', '正在补全摘要与引用…'],
+  paper_by_dois: ['正在批量核验 DOI…', '正在归并结果…'],
+  paper_distill: ['正在精读文献…', '正在提炼创新点与方法…'],
+  paper_cited_by: ['正在检索施引文献…'],
+  paper_references: ['正在检索参考文献…'],
+  related_papers: ['正在检索相关文献…'],
+  author_profile: ['正在构建学者画像…', '正在统计 h 指数与代表作…'],
+  cross_search: ['正在检索交叉工作…', '正在推演跨界融合路径…'],
+  web_search: ['正在搜索网络资源…'],
+}
+const THINKING_STEPS_GENERIC = [
   '正在检索权威学术数据库…',
   '正在多源归并文献并锚定 DOI…',
   '正在精读文献并提炼创新点…',
@@ -153,7 +220,17 @@ const showThinking = computed(() => {
   return !!(props.message.thinking || props.isStreaming)
 })
 
-const thinkingLabel = computed(() => THINKING_STEPS[thinkingStep.value] || THINKING_STEPS[0])
+// 根据当前消息关联的工具调用动态选择思考文案
+const activeThinkingSteps = computed(() => {
+  const toolCalls = props.message.tool_calls || []
+  for (const tc of toolCalls) {
+    const name = tc.name || (tc.tool_name) || ''
+    if (TOOL_THINKING_MAP[name]) return TOOL_THINKING_MAP[name]
+  }
+  return THINKING_STEPS_GENERIC
+})
+
+const thinkingLabel = computed(() => activeThinkingSteps.value[thinkingStep.value] || activeThinkingSteps.value[0] || '思考中…')
 
 function startThinkingTimer() {
   stopThinkingTimer()
@@ -161,10 +238,15 @@ function startThinkingTimer() {
   thinkingStep.value = 0
   thinkingTimer = setInterval(() => {
     const elapsed = (Date.now() - thinkingStartedAt) / 1000
-    if (elapsed >= 20) thinkingStep.value = 3
-    else if (elapsed >= 10) thinkingStep.value = 2
-    else if (elapsed >= 4) thinkingStep.value = 1
-    else thinkingStep.value = 0
+    const steps = activeThinkingSteps.value
+    // 按经过时间推进步骤（不超过该工具的文案数）
+    const stepCount = steps.length
+    if (stepCount <= 1) {
+      thinkingStep.value = 0
+    } else {
+      const perStep = Math.max(4, 20 / stepCount)
+      thinkingStep.value = Math.min(Math.floor(elapsed / perStep), stepCount - 1)
+    }
   }, 800)
 }
 
@@ -240,7 +322,16 @@ const hasToolContent = computed(() => {
   )
 })
 
-function previewImage(src) { window.open(src, '_blank') }
+// 图片预览：lightbox modal（替代 window.open，支持 a11y dialog）
+const lightboxSrc = ref('')
+const lightboxAlt = ref('')
+function previewImage(src) {
+  lightboxSrc.value = src
+  lightboxAlt.value = '图片预览'
+}
+function closeLightbox() {
+  lightboxSrc.value = ''
+}
 
 function formatMessageTime(m) {
   const ts = m?.created_at || m?.timestamp || m?.time
@@ -601,4 +692,69 @@ function sanitizeAssistantContent(text) {
   0%, 80%, 100% { transform: scale(.4); opacity: .4; }
   40% { transform: scale(1); opacity: 1; }
 }
+
+/* 助手消息操作栏（复制 / 引用） */
+.message-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.message-assistant:hover .message-actions { opacity: 1; }
+.msg-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-text-tertiary);
+  font-size: var(--fz-mini);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.msg-action-btn:hover {
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
+  border-color: var(--c-primary);
+}
+
+/* 图片 lightbox */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  cursor: zoom-out;
+}
+.lightbox-img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-xl);
+  cursor: default;
+}
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 24px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lightbox-close:hover { background: rgba(255, 255, 255, 0.3); }
 </style>

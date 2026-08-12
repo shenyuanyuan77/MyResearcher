@@ -4,7 +4,7 @@
  * 提供流式对话、中断恢复和会话状态查询接口
  */
 
-import { authHeaders } from './http.js'
+import { authHeaders, apiFetch, extractApiError } from './http.js'
 
 const API_BASE = '/api/chat'
 
@@ -50,11 +50,17 @@ export async function streamChat(message, threadId = null, callbacks = {}, signa
     })
 
     if (!response.ok) {
+      if (response.status === 401) {
+        // 流式 401：token 失效，触发全局登出
+        const { clearAuth } = await import('./http.js')
+        clearAuth()
+        window.dispatchEvent(new CustomEvent('auth:required'))
+      }
       const errBody = await response.json().catch(() => ({}))
       const detail = errBody.detail
       const msg = typeof detail === 'string'
         ? detail
-        : (detail?.msg || `请求失败: ${response.status} ${response.statusText}`)
+        : (detail?.message || detail?.msg || `请求失败: ${response.status} ${response.statusText}`)
       throw new Error(msg)
     }
 
@@ -159,8 +165,8 @@ async function _processStream(response, threadId, callbacks, fullContent, toolCa
     // 解码数据
     buffer += decoder.decode(value, { stream: true })
 
-    // 处理缓冲区中的数据（按行分割）
-    const lines = buffer.split('\n')
+    // 处理缓冲区中的数据（按行分割，兼容 \n 和 \r\n）
+    const lines = buffer.split(/\r?\n/)
     buffer = lines.pop() // 保留未完成的行
 
     for (const line of lines) {
@@ -284,10 +290,11 @@ async function _processStream(response, threadId, callbacks, fullContent, toolCa
  * @returns {Promise} 返回会话状态对象
  */
 export async function getChatState(threadId) {
-  const response = await fetch(`${API_BASE}/${threadId}`)
+  const response = await apiFetch(`${API_BASE}/${threadId}`)
 
   if (!response.ok) {
-    throw new Error('获取会话状态失败')
+    const body = await response.json().catch(() => ({}))
+    throw new Error(extractApiError(body, '获取会话状态失败'))
   }
 
   return response.json()
@@ -301,10 +308,11 @@ export async function getChatState(threadId) {
  * @returns {Promise} 返回状态历史列表
  */
 export async function getChatHistory(threadId, limit = 50) {
-  const response = await fetch(`${API_BASE}/${threadId}/history?limit=${limit}`)
+  const response = await apiFetch(`${API_BASE}/${threadId}/history?limit=${limit}`)
 
   if (!response.ok) {
-    throw new Error('获取会话历史失败')
+    const body = await response.json().catch(() => ({}))
+    throw new Error(extractApiError(body, '获取会话历史失败'))
   }
 
   return response.json()

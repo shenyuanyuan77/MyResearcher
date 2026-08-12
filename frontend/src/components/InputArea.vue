@@ -29,6 +29,8 @@
           @focus="isFocused = true"
           @blur="isFocused = false"
           @keydown.enter.exact.prevent="handleSend"
+          @keydown.arrow-up.prevent="editLastMessage"
+          @keydown.esc="inputText = ''"
           @input="autoResize"
           :placeholder="placeholder"
           rows="1"
@@ -50,12 +52,21 @@
           <AppIcon name="stop" :size="11" color="#ffffff" />
         </button>
       </div>
+      <!-- 字数/token 提示 + 快捷键提示 -->
+      <div class="input-hint">
+        <span class="char-count" :class="{ warn: charCount > 4000 }">
+          {{ charCount }} 字 · 约 {{ estimatedTokens }} token
+        </span>
+        <span class="shortcut-hint">
+          <kbd>Enter</kbd> 发送 · <kbd>↑</kbd> 编辑上条 · <kbd>Esc</kbd> 清空
+        </span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import AppIcon from './AppIcon.vue'
 
 const props = defineProps({
@@ -64,11 +75,19 @@ const props = defineProps({
   showToolCalls: { type: Boolean, default: true },
 })
 
-const emit = defineEmits(['send', 'stop', 'toggle-tool-calls'])
+const emit = defineEmits(['send', 'stop', 'toggle-tool-calls', 'edit-last'])
 
 const inputText = ref('')
 const isFocused = ref(false)
 const textareaRef = ref(null)
+
+// 字数与 token 估算（中文≈1.5 token/字，英文≈0.25 token/字，粗估）
+const charCount = computed(() => inputText.value.length)
+const estimatedTokens = computed(() => {
+  const cn = (inputText.value.match(/[\u4e00-\u9fff]/g) || []).length
+  const en = inputText.value.length - cn
+  return Math.round(cn * 1.5 + en * 0.25)
+})
 
 function handleSend() {
   const text = inputText.value.trim()
@@ -78,6 +97,12 @@ function handleSend() {
   nextTick(() => {
     if (textareaRef.value) textareaRef.value.style.height = 'auto'
   })
+}
+
+function editLastMessage() {
+  // 输入框为空时按 ↑ 编辑上一条消息
+  if (inputText.value.trim()) return
+  emit('edit-last')
 }
 
 function handleStop() { emit('stop') }
@@ -262,5 +287,29 @@ function autoResize() {
   .send-label, .stop-btn span { display: none; }
   .send-btn { width: 38px; padding: 0; }
   .stop-btn { width: 38px; padding: 0; }
+}
+
+/* 字数/token 提示 + 快捷键提示 */
+.input-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 4px 0;
+  font-size: var(--fz-mini);
+  color: var(--c-text-tertiary);
+}
+.char-count.warn { color: var(--c-warning); }
+.shortcut-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--c-border);
+  border-radius: 3px;
+  background: var(--c-surface);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  margin: 0 1px;
+}
+@media (max-width: 600px) {
+  .shortcut-hint { display: none; }  /* 移动端隐藏快捷键提示 */
 }
 </style>

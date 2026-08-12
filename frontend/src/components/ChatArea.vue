@@ -1,7 +1,7 @@
 <template>
   <div class="chat-area">
     <!-- 消息列表 -->
-    <div class="message-list" ref="messageListRef">
+    <div class="message-list" ref="messageListRef" @scroll="checkNearBottom" aria-live="polite" aria-atomic="false">
       <WelcomeView
         v-if="displayMessages.length === 0"
         :pending-summary="pendingSummary"
@@ -18,6 +18,17 @@
         />
       </div>
     </div>
+    <!-- 新消息回底提示（用户上滚时有新消息） -->
+    <transition name="fade">
+      <button
+        v-if="hasUnread"
+        class="scroll-to-bottom-btn"
+        @click="scrollToBottom"
+        aria-label="滚动到最新消息"
+      >
+        ↓ 新消息
+      </button>
+    </transition>
   </div>
 </template>
 
@@ -93,6 +104,10 @@ const displayMessages = computed(() => {
 
 // 消息列表引用
 const messageListRef = ref(null)
+// 用户是否在底部附近（用于判断是否自动滚动）
+const isNearBottom = ref(true)
+// 是否有新消息未读（用户上滚时有新消息时提示）
+const hasUnread = ref(false)
 
 /**
  * 判断当前消息是否处于流式输出状态
@@ -105,22 +120,41 @@ function isStreamingForMessage(msg) {
   return lastAssistant === msg
 }
 
-// 监听消息变化，自动滚动到底部
+/**
+ * 检测用户是否在底部附近（距底 < 120px 视为 near）
+ */
+function checkNearBottom() {
+  const el = messageListRef.value
+  if (!el) return true
+  const threshold = 120
+  isNearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+  // 用户主动滚到底部，清除未读提示
+  if (isNearBottom.value) hasUnread.value = false
+}
+
+// 监听消息数量变化（新消息加入）
 watch(
   () => props.messages.length,
   () => {
     nextTick(() => {
-      scrollToBottom()
+      if (isNearBottom.value) {
+        scrollToBottom()
+      } else {
+        hasUnread.value = true
+      }
     })
   }
 )
 
-// 深度监听消息内容变化（流式更新时也会触发滚动）
+// 深度监听消息内容变化（流式更新时）
 watch(
   () => props.messages,
   () => {
     nextTick(() => {
-      scrollToBottom()
+      // 仅当用户在底部附近时自动跟随流式输出滚动
+      if (isNearBottom.value) {
+        scrollToBottom()
+      }
     })
   },
   { deep: true }
@@ -134,10 +168,12 @@ function scrollToBottom() {
     messageListRef.value.scrollTop = props.messages.length
       ? messageListRef.value.scrollHeight
       : 0
+    isNearBottom.value = true
+    hasUnread.value = false
   }
 }
 
-// 历史会话首次挂载时 props 已经包含完整消息，watch 不一定会再次触发。
+// 历史会话首次挂载时滚动到底部
 onMounted(() => nextTick(scrollToBottom))
 </script>
 
@@ -182,4 +218,29 @@ onMounted(() => nextTick(scrollToBottom))
   margin: 0;
   box-sizing: border-box;
 }
+
+/* 新消息回底按钮 */
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-pill, 999px);
+  background: var(--c-surface);
+  color: var(--c-primary);
+  font-size: var(--fz-caption);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--sh-md);
+  z-index: 10;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.scroll-to-bottom-btn:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: var(--sh-lg);
+}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
