@@ -110,6 +110,7 @@
           :streaming="isStreaming || isResuming"
           :show-tool-calls="showToolCalls"
           @quick-send="handleSend"
+          @quote-reply="handleQuoteReply"
         />
         <InterruptBanner
           v-if="interruptData"
@@ -122,9 +123,13 @@
           :placeholder="workspace.placeholder"
           :streaming="isStreaming"
           :show-tool-calls="showToolCalls"
+          :preset-text="presetText"
           @send="handleSend"
           @stop="handleStop"
           @toggle-tool-calls="showToolCalls = $event"
+          @edit-last="handleEditLast"
+          @upload-result="handleUploadResult"
+          @preset-consumed="presetText = ''"
         />
       </main>
     </div>
@@ -174,6 +179,7 @@ const exportMenuOpen = ref(false)
 const exporting = ref(false)
 const exportCitationStyle = ref('gbt7714')
 const exportPdfTemplate = ref('report')
+const presetText = ref('')  // 注入 InputArea 的预设文本（quote/edit）
 let abortController = null
 
 const HIDDEN_TOOL_NAMES = new Set([
@@ -391,8 +397,26 @@ async function handleRenameSession({ threadId, title }) {
   }
 }
 
+// 引用回复：把助手消息片段注入输入框
+function handleQuoteReply(message) {
+  const content = (message.content || '').slice(0, 500)
+  presetText.value = `> ${content.split('\n').slice(0, 3).join('\n> ')}\n\n针对这段，我想了解：`
+}
+
+// 编辑上条消息：找到最后一条 user 消息填回输入框
+function handleEditLast() {
+  const lastUser = [...messages.value].reverse().find(m => m.role === 'user')
+  if (lastUser && lastUser.content) {
+    presetText.value = lastUser.content
+  }
+}
+
+// 上传结果：静默处理（InputArea 已自动注入精读摘要到输入框）
+function handleUploadResult() {
+  // 预留：可在此触发 toast 通知
+}
+
 function handleOpenSettings() {
-  // 偏好设置面板（Phase 2 完整实现；本轮占位提示）
   alert('偏好设置面板即将上线。当前研究方向/认知等级已随对话自动学习（伴随式成长）。')
 }
 function handleStop() { abortController?.abort() }

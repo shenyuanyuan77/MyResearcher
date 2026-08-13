@@ -22,6 +22,17 @@
       </div>
 
       <div class="input-wrapper" :class="{ focused: isFocused, streaming: streaming }">
+        <!-- 文件上传按钮 -->
+        <label class="upload-btn" :class="{ uploading }" :title="streaming ? '生成中不可上传' : '上传 PDF/Word 精读'">
+          <AppIcon :name="uploading ? 'attachment' : 'attachment'" :size="16" :class="{ spinning: uploading }" />
+          <input
+            type="file"
+            accept=".pdf,.docx,.doc,.txt,application/pdf"
+            class="upload-input"
+            :disabled="streaming || uploading"
+            @change="handleUpload"
+          />
+        </label>
         <textarea
           ref="textareaRef"
           v-model="inputText"
@@ -66,20 +77,64 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import AppIcon from './AppIcon.vue'
 
 const props = defineProps({
   placeholder: { type: String, default: '输入研究方向、检索词、学者姓名，或直接描述你的科研问题…' },
   streaming: { type: Boolean, default: false },
   showToolCalls: { type: Boolean, default: true },
+  presetText: { type: String, default: '' },  // 外部注入文本（quote/edit 时用）
 })
 
-const emit = defineEmits(['send', 'stop', 'toggle-tool-calls', 'edit-last'])
+const emit = defineEmits(['send', 'stop', 'toggle-tool-calls', 'edit-last', 'upload-result', 'preset-consumed'])
+
+// 外部 presetText 变化时注入输入框（append 模式，光标聚焦末尾）
+watch(() => props.presetText, (val) => {
+  if (!val) return
+  inputText.value = inputText.value
+    ? `${inputText.value}\n\n${val}`
+    : val
+  emit('preset-consumed')  // 通知父组件已消费
+  nextTick(() => {
+    if (textareaRef.value) {
+      textareaRef.value.focus()
+      autoResize()
+    }
+  })
+})
 
 const inputText = ref('')
 const isFocused = ref(false)
 const textareaRef = ref(null)
+const uploading = ref(false)
+
+async function handleUpload(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  e.target.value = ''  // 清空，允许重复上传同文件
+  uploading.value = true
+  try {
+    const { uploadFile } = await import('../api/upload.js')
+    const result = await uploadFile(file)
+    // 把精读结果注入输入框（用户可编辑后发送），并 emit 供上层展示
+    const summary = [
+      `📄 已上传《${result.filename}》（${result.full_text_chars} 字）`,
+      result.abstract_hint ? `\n\n**摘要提示**：${result.abstract_hint}` : '',
+      result.quotable_sentences?.length
+        ? `\n\n**可引用句**：\n${result.quotable_sentences.slice(0, 3).map(s => '- ' + s).join('\n')}`
+        : '',
+      `\n\n请基于这篇论文帮我：精读提炼 / 综述对比 / 审稿。`,
+    ].join('')
+    inputText.value = summary
+    emit('upload-result', result)
+    nextTick(() => autoResize())
+  } catch (err) {
+    alert(`上传失败：${err.message}`)
+  } finally {
+    uploading.value = false
+  }
+}
 
 // 字数与 token 估算（中文≈1.5 token/字，英文≈0.25 token/字，粗估）
 const charCount = computed(() => inputText.value.length)
@@ -297,6 +352,45 @@ function autoResize() {
   padding: 4px 4px 0;
   font-size: var(--fz-mini);
   color: var(--c-text-tertiary);
+}
+
+/* 上传按钮 */
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  color: var(--c-text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.upload-btn:hover:not(.uploading) {
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
+}
+.upload-btn.uploading {
+  opacity: 0.6;
+  cursor: wait;
+}
+.upload-btn.uploading :deep(svg),
+.upload-btn .spinning {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+.upload-input {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  overflow: hidden;
 }
 .char-count.warn { color: var(--c-warning); }
 .shortcut-hint kbd {

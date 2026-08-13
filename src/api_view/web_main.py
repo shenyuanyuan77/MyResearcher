@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from agent.settings import settings
-from api_view.api import auth_routes, chat, history, library
+from api_view.api import auth_routes, chat, history, library, upload
 from api_view.report_export import router as report_router
 from api_view.agent_loader import agent_loader
 from api_view.health_deps import collect_dependency_status
@@ -104,6 +104,7 @@ app.include_router(chat.router, prefix="/api", tags=["对话"])
 app.include_router(history.router, prefix="/api", tags=["历史记录"])
 app.include_router(report_router, prefix="/api", tags=["报告导出"])
 app.include_router(library.router, prefix="/api", tags=["个人文献库"])
+app.include_router(upload.router, prefix="/api", tags=["文件上传"])
 
 
 @app.get("/", tags=["首页"])

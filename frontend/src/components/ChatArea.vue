@@ -10,11 +10,16 @@
 
       <!-- 消息列表（user / assistant / tool 按时间顺序混合展示）-->
       <div v-else class="messages">
+        <!-- 懒加载提示：还有更早消息未渲染 -->
+        <div v-if="hasMore" class="load-more-hint" @click="renderLimit += RENDER_BATCH">
+          ↑ 加载更早的 {{ filteredMessages.length - renderLimit }} 条消息
+        </div>
         <MessageItem
           v-for="(message, index) in displayMessages"
           :key="message.id || index"
           :message="message"
           :is-streaming="isStreamingForMessage(message)"
+          @quote-reply="$emit('quote-reply', $event)"
         />
       </div>
     </div>
@@ -37,7 +42,7 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import MessageItem from './MessageItem.vue'
 import WelcomeView from './WelcomeView.vue'
 
-defineEmits(['quick-send'])
+defineEmits(['quick-send', 'quote-reply'])
 
 /**
  * 对话区域组件
@@ -92,15 +97,27 @@ function isInternalNotice(msg) {
 }
 
 // 根据开关过滤展示的消息
-const displayMessages = computed(() => {
+const RENDER_BATCH = 50  // 每批渲染条数
+const renderLimit = ref(RENDER_BATCH)
+
+const filteredMessages = computed(() => {
   let list = props.messages
-  // 始终隐藏待办类内部工具
   list = list.filter((m) => !isHiddenTool(m) && !isInternalNotice(m))
   if (!props.showToolCalls) {
     list = list.filter((m) => m.role !== 'tool')
   }
   return list
 })
+
+const displayMessages = computed(() => {
+  // 仅渲染最近 renderLimit 条（懒加载；用户滚顶时增加）
+  const list = filteredMessages.value
+  if (list.length <= renderLimit.value) return list
+  return list.slice(list.length - renderLimit.value)
+})
+
+// 是否还有更早消息未渲染
+const hasMore = computed(() => filteredMessages.value.length > renderLimit.value)
 
 // 消息列表引用
 const messageListRef = ref(null)
@@ -122,20 +139,34 @@ function isStreamingForMessage(msg) {
 
 /**
  * 检测用户是否在底部附近（距底 < 120px 视为 near）
+ * 滚到顶部时加载更多历史消息
  */
 function checkNearBottom() {
   const el = messageListRef.value
-  if (!el) return true
+  if (!el) return
   const threshold = 120
   isNearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < threshold
   // 用户主动滚到底部，清除未读提示
   if (isNearBottom.value) hasUnread.value = false
+  // 滚到顶部（距顶 < 30px）且还有更多消息 → 加载
+  if (el.scrollTop < 30 && hasMore.value) {
+    const prevHeight = el.scrollHeight
+    renderLimit.value += RENDER_BATCH
+    // 保持滚动位置（加载后内容增高，补偿 scrollTop）
+    nextTick(() => {
+      if (messageListRef.value) {
+        messageListRef.value.scrollTop = messageListRef.value.scrollHeight - prevHeight
+      }
+    })
+  }
 }
 
-// 监听消息数量变化（新消息加入）
+// 监听消息数量变化（新消息加入 / 会话切换）
 watch(
   () => props.messages.length,
   () => {
+    // 会话切换时重置渲染上限
+    renderLimit.value = RENDER_BATCH
     nextTick(() => {
       if (isNearBottom.value) {
         scrollToBottom()
@@ -217,6 +248,22 @@ onMounted(() => nextTick(scrollToBottom))
   max-width: 100%;
   margin: 0;
   box-sizing: border-box;
+}
+
+/* 懒加载提示 */
+.load-more-hint {
+  text-align: center;
+  padding: 8px;
+  margin: 4px 0;
+  font-size: var(--fz-caption);
+  color: var(--c-primary);
+  cursor: pointer;
+  border: 1px dashed var(--c-border);
+  border-radius: var(--r-sm);
+  transition: background var(--transition-fast);
+}
+.load-more-hint:hover {
+  background: var(--c-primary-soft);
 }
 
 /* 新消息回底按钮 */

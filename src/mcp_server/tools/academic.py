@@ -251,6 +251,14 @@ async def paper_search(
     elif len(merged) < rows and sources_failed:
         degraded_reason = f"已尽力召回 {len(merged)} 篇（目标 {rows}），部分数据源受限：{','.join(sources_failed)}"
 
+    # 期刊可信度标注（DOAJ 白名单；限前 10 篇避免 API 过载）
+    papers_dicts = [p.to_dict() for p in merged]
+    try:
+        from mcp_server.tools.doaj_trust import enrich_papers_with_trust
+        papers_dicts = await enrich_papers_with_trust(papers_dicts)
+    except Exception:
+        pass
+
     result = {
         "query": query,
         "count": len(merged),
@@ -272,7 +280,7 @@ async def paper_search(
             },
             "degraded_reason": degraded_reason,
         },
-        "papers": [p.to_dict() for p in merged],
+        "papers": papers_dicts,
         "references": _structured_references(merged),
         "references_markdown": _references_block(merged),
         "suggested_markdown": papers_to_markdown(
