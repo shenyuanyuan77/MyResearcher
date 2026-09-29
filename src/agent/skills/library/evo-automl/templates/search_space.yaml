@@ -1,0 +1,53 @@
+# 搜索空间（供给点2+3 —— 零预设：候选池全部来自用户文献/自有实验，本文件无默认模块）
+representation_family: chain_cnn
+# ↑ 表示族由用户文献主流结构决定（判定规则见 phase-details.md Phase 3 步骤0）：
+#   chain_cnn | cell_dag | tree_gp | token_transformer | hybrid
+#   DIAT实例=chain_cnn（数据集文献以链式CNN为主）；若用户文献以ViT/谱注意力为主
+#   则选 token_transformer（基因维度变为：patch粒度/深度/宽度/头数/PE类型/池化…，
+#   参考实现 adlib/vitbase.py 的手工变体矩阵就是该族的维度清单）
+
+parts:                        # 候选池：每条必须对应 evidence.yaml 里的登记条目
+  - residual_block            # ← 用户文献 RadSATNet
+  - ds_conv_block             # ← 用户文献 MobileNet系+本数据集基线
+  - dilated_ds_block          # ← 用户自有实验 AnyDwell
+  # 新模块来源只能是：(a)用户文献中反复出现且作用明确的组件
+  #                  (b)用户自有历史实验验证过的组件
+  #                  (c)无证据组件 → 先做单点验证实验，通过后再登记准入
+  # 每个part需提供builder接口：in_ch→out_ch 的可组合模块（引擎只认接口不认类型）
+  # 特征编码模块（stem/patch化/频带token化等）同样可按证据准入为可搜索零件——
+  # 用户的理解示例："不同特征编码模块"作为候选方案的一部分
+  # 连接方式（跳连/DAG边）在 cell_dag / tree_gp 族中是天然可搜索维度；
+  # chain_cnn 族内连接固定为族定义，不假装搜索
+
+stem: default_fixed           # 默认固定；若证据支持可改为 searchable零件（如多候选stem）
+
+genome:                       # 基因编码规范（维度清单随表示族变化，由证据推断）
+  discrete:
+    n_stages: [2, 3, 4]
+    blocks_per_stage: [1, 2, 3]
+    op_per_stage: parts       # 从上面parts里选
+    pool_type: [max, avg]
+  continuous:                 # R4: 宽度必须连续编码
+    width: {range: [16, 128], step: 8, genes: 5}   # stem+每级
+    lr_log: {range: [-4.0, -2.5]}                  # 对数尺度
+  discrete_hp:
+    weight_decay: [0.01, 0.05]
+    dropout: [0.2, 0.4]
+  auto_transition: true       # 级间通道不一致自动插过渡层（L1冒烟校验）
+  # token_transformer族的genome示例（不作默认，仅示意维度随族变化）：
+  #   discrete: {depth:[4,8], heads:[4,8], pe:[learned,band,none], pool:[cls,mean]}
+  #   continuous: {d_model:[128,512], patch_f:[4,32], patch_t:[4,32], lr_log:...}
+
+optimizer:                    # R10: 可插拔
+  main: ga                    # ga | pso | de | aco | bayesian
+  # 三种仿生更新的语义（引用时对应文献）：
+  #   ga  = 选择/交叉/变异（遗传+自然选择）      → 通用，本模板默认
+  #   pso = 个体历史最优+群体最优的速度更新      → 连续宽度维度友好（SLE-NAS）
+  #   de  = 个体间差分向量产生新候选            → 实数编码全局搜索（TPEvo-CNN）
+  #   aco = 信息素累积（适合离散组合/路径型空间）
+  #   bayesian / random = 非仿生对照
+  selection: tournament       # tournament(单目标) | nsga2_nondominated(多目标fitness时必换)
+  control: random             # R2: 随机对照臂恒配，等预算
+  ga: {pop: 10, generations: 15, tournament_k: 3, elites: 2,
+       crossover: [uniform_discrete, arithmetic_continuous],
+       mutation: {p: 0.3, sigma: 0.15}}

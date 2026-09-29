@@ -1,0 +1,21 @@
+# 任务与优化目标（供给点1+4 —— 最先设计，落盘后不可改）
+task:
+  name: radar_uav_microdoppler_classification   # 换任务改这里
+  domain: radar_signal_processing
+  input: {modality: spectrogram, shape: [1, 128, 256], notes: "锁定STFT协议,resize部署格式"}
+  dataset: {records: 4849, classes: 6, split_file: "frozen block_splits.npy 3879/484/486"}
+
+objective:                    # "什么叫好" —— 专家输入的核心
+  primary: max macro_f1       # 主指标（类别不均衡故用macro）
+  constraints:
+    hard:  {params: 600000}   # 超限直接不合格
+  record_only: [macs, latency_ms]   # 只记录不进fitness（帕累托分析用）
+  # record_only 每项必须有测量/估计方法：macs=前向hook计数器；
+  # latency_ms=真机测量脚本或硬件延迟预测器（不测不写）
+  # soft 多目标备选: fitness = f1 − λ*params/B  （λ需声明）
+  # 多目标备选:  max f1 & min params & min flops → 输出帕累托前沿（引EvoXBench）
+
+budget:
+  gpu: "RTX 3050 Laptop 4GB"
+  search_minutes: 60          # 搜索预算上限
+  final_train_per_run_min: 10

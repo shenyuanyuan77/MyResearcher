@@ -1,0 +1,40 @@
+# 评价协议与统计裁决（供给点5 —— 搜索前冻结，R5）
+proxy:                        # 快速评价（只准粗筛，R1）
+  subset: {fraction: 0.2, method: stratified, seed: 2099}   # 冻结子集
+  epochs: 12
+  warmup_iters: 50
+  metric: val_macro_f1        # 与终审指标同源，防代理漂移
+  weight_inheritance: true    # 在线权重池（可选，报告墙钟收益）
+
+audit:                        # Phase 6 强制审计（R3）
+  retrain_top_n: 10
+  diversity_controls: 3       # 审计集必须加随机中低分个体作对照点：
+                             # 种群收敛后top-N结构高度同质、分数跨度被压缩，
+                             # 只在top段内算ρ会高估/错估保真度（DIAT教训：跨度仅1pp）
+  seeds: [2026]
+  statistic: spearman
+  grades: {high: 0.7, medium: 0.4}
+  # >0.7→top3终审; 0.4-0.7→top5; <0.4→top10全量或重设计代理
+  # 警示：n<15时ρ分级只是参考（ρ=0.4在n=10下p≈0.25），分级结论须连同p值与
+  # 分数跨度一起报告；low 时禁止依赖代理排序
+  budget_guard: "top-K全量成本 = K×n_seeds×单次全量时长；超预算则降K并如实记录"
+
+final:                        # 终训与裁决
+  epochs: 60
+  batch: 32
+  optimizer: {name: adamw, scheduler: cosine, warmup: 500, label_smoothing: 0.03, ema: 0.999}
+  precision: bf16
+  seeds: [2026, 2027, 2028]
+  aggregate: [mean_std, majority_vote]
+  significance:
+    method: paired_bootstrap
+    n_boot: 2000
+    claim_rule: "CI95 不含零 且 提升>0.5pp"
+  anchors: [literature_sota, own_prior_sota, random_arm_best]   # 三个必比锚点
+
+ablation_min: [co_hp, random_control, width_encoding]  # R8 必做三项
+ablation_optional: [weight_inheritance]  # 按预算/按证据做（DIAT实测墙钟中性，强制必做会浪费预算）
+
+logging:
+  per_run: [ckpt_best.pt, result.json, probs_test.npz]
+  experiment_log: "实验日志/<体系>/E0-E4编号体系"

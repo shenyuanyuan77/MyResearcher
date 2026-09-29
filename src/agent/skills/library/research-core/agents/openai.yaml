@@ -1,0 +1,4 @@
+interface:
+  display_name: "Research Pipeline"
+  short_description: "科研任务编排器：并行侦察、串行设计与审稿、定向回退"
+  default_prompt: "使用 $research-pipeline 编排四个科研子智能体，完成我的科研任务：{课题/方法/实验/论文问题描述}"

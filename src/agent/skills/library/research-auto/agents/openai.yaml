@@ -1,0 +1,4 @@
+interface:
+  display_name: "research-auto 双脑科研流水线"
+  short_description: "Codex规划+Zcode执行的科研自动化全流程：复现baseline、单点改造实验、双脑互审写论文"
+  default_prompt: "启动科研流水线：学习我的数据集相关SOTA论文，复现baseline并挖掘可发表的创新点，用codex规划、Zcode执行、双脑互审完成论文"

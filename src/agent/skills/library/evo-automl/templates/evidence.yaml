@@ -1,0 +1,29 @@
+# 证据库（供给点2的落盘形式 —— 每个零件必须有出处与作用，否则不准入）
+data_source:
+  dataset: DIAT-uSAT
+  evidence_paper: "DIAT-SAT CNN (dataset paper)"
+  preprocessing_evidence: "自有EXP_094锁定协议,与历史全部轮次一致"
+
+baselines:                    # 同数据集文献方法,划分口径必须一致才可比
+  - {name: RadSATNet-40L, evidence: "DIAT-RadSATNet 2022 忠实复现†(论文无代码)", test_mv: 0.957, params: 409926}
+  - {name: AnyDwell-B3,   evidence: "自有 DIAT-G-260908", test_mv: 0.969, params: 184679}
+  - {name: MobileNetV3-S, evidence: "torchvision+同协议复跑", test_mv: 0.931}
+  - {name: IQGA-SVM,      evidence: "量子遗传SVM论文忠实复现†", test_mv: 0.859}
+
+parts:                        # 零件准入表（论文写作资产）
+  - {part: residual_block,   source: "RadSATNet(同数据集SOTA)",       role: "稳定深层训练",           admit: true}
+  - {part: ds_conv_block,    source: "MobileNet系+本数据集MBv3S 0.931", role: "参数量降一个量级",       admit: true}
+  - {part: dilated_ds_block, source: "自有AnyDwell轮次(0.967)",        role: "扩大时频感受野匹配谐波", admit: true}
+  # - {part: attention,      source: "同模态Transformer论文",           role: "长程周期依赖",           admit: pending单点验证}
+
+mechanisms:                   # 机制证据 → 方法学顶刊（引用骨架,写论文直接取用）
+  - {decision: 连续宽度分层编码,     evidence: "SLE-NAS, TNNLS 2024"}
+  - {decision: 精英权重继承,         evidence: "SLE-NAS, TNNLS 2024"}
+  - {decision: 参数-结构协同进化,    evidence: "TPEvo-CNN, Access 2023; MetaNAS, TCSVT 2025"}
+  - {decision: 低保真代理+可靠性审计, evidence: "Fast Memetic, TNNLS 2023 + 自有ρ=0.355实测"}
+  - {decision: 多目标/预算形式化,    evidence: "EvoXBench, TEVC; 约束处理, TNNLS 2023"}
+  - {decision: 公平比较协议,         evidence: "BenchENAS, TEVC 2022"}
+  - {decision: 方法框架综述,         evidence: "A Survey on ENAS, TNNLS 2023"}
+
+literature_pdf: "C:\\Users\\Trashmak1r\\Desktop\\智能仿生算法NAS文献_2022-2025"
+reference_implementation: "D:\\Innodemo\\code\\adlib\\enas.py + run_enas_*.py + enas_analysis.py"
