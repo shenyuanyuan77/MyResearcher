@@ -1,5 +1,5 @@
 """
-研途智探AI · 报告导出（Markdown → DOCX / PDF / MD）。
+MyResearcher · 报告导出（Markdown → DOCX / PDF / MD）。
 
 - DOCX：python-docx，解析 markdown 结构（标题/段落/列表/表格/链接）。
 - PDF：markdown → HTML → xhtml2pdf（纯 Python，无需 GTK）。
@@ -420,7 +420,7 @@ async def export_report(
 
     from urllib.parse import quote
 
-    filename = f"研途智探报告_{body.thread_id[:8]}.{ext}"
+    filename = f"MyResearcher报告_{body.thread_id[:8]}.{ext}"
     # 中文文件名需 RFC 5987 编码（latin-1 header 限制）
     filename_ascii = f"report_{body.thread_id[:8]}.{ext}"
     headers = {
@@ -479,7 +479,7 @@ async def export_multi(
             detail={"code": "RENDER_FAILED", "message": "渲染失败", "detail": str(e)},
         )
     from urllib.parse import quote
-    filename = f"研途智探合并报告_{len(body.thread_ids)}会话.{ext}"
+    filename = f"MyResearcher合并报告_{len(body.thread_ids)}会话.{ext}"
     filename_ascii = f"report_multi_{len(body.thread_ids)}.{ext}"
     headers = {
         "Content-Disposition": (

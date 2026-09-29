@@ -2,7 +2,7 @@
  * 文件上传 API client。
  * PDF/Word 上传 → 结构化精读（创新点/方法/可引用句）。
  */
-import { getToken, extractApiError } from './http.js'
+import { getToken, clearAuth, extractApiError } from './http.js'
 
 /**
  * 上传文件并返回结构化精读。
@@ -21,6 +21,11 @@ export async function uploadFile(file) {
     },
     body: fd,
   })
+  if (resp.status === 401) {
+    // 与 http.js 契约一致：token 失效时清凭证并触发全局重登录
+    clearAuth()
+    window.dispatchEvent(new CustomEvent('auth:required'))
+  }
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({}))
     throw new Error(extractApiError(body, `上传失败 (${resp.status})`))

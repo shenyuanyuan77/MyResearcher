@@ -14,7 +14,7 @@
     class="app-icon"
     :style="{ color }"
   >
-    <g v-html="path"></g>
+    <path :d="path" />
   </svg>
 </template>
 
@@ -37,6 +37,8 @@ const ICONS = {
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.31 0-7 1.79-7 5v1h14v-1c0-3.21-3.69-5-7-5Z',
   bot: 'M5 8h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-9l-5 3v-3H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Z M9 12h.01 M15 12h.01',
   sparkles: 'M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3Z M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z M5 14l.6 1.4L7 16l-1.4.6L5 18l-.6-1.4L3 16l1.4-.6L5 14Z',
+  sun: 'M12 8a4 4 0 0 0 0 8 4 4 0 0 0 0-8Z M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z',
 
   // 工具 / 状态
   wrench: 'M14.7 6.3a4 4 0 1 0 5 5l-2.4-2.4 2.4-2.4-2.6-.2-2.4 0Z M3 21l8-8',
@@ -58,9 +60,12 @@ const ICONS = {
   envelope: 'M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z M22 7l-10 6L2 7',
   link: 'M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66L11 7 M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66L13 17',
   attachment: 'M21.4 11l-9.2 9.2a5 5 0 0 1-7-7l9.2-9.2a3.5 3.5 0 0 1 5 5L10.2 18a2 2 0 0 1-3-3l8.5-8.5',
+  reply: 'M9 17l-5-5 5-5 M20 18v-2a4 4 0 0 0-4-4H4',
 
   // 行为 / 反馈
   check: 'M5 12l5 5 9-11',
+  copy: 'M9 9h12v12H9z M5 15V6a2 2 0 0 1 2-2h9',
+  logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9',
   cross: 'M18 6L6 18 M6 6l12 12',
   plus: 'M12 5v14 M5 12h14',
   minus: 'M5 12h14',
@@ -128,7 +133,7 @@ const ICONS = {
   rocket: 'M5 19c0-3 1-5 3-7l4 4c-2 2-4 3-7 3Z M14 5l5 5 M19 4l1 1 M9 15l-2 4 4-2',
 }
 
-const path = computed(() => ICONS[props.name] || ICONS.dot)
+const path = computed(() => ICONS[props.name] || '')
 </script>
 
 <style scoped>

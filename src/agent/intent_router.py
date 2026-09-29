@@ -1,5 +1,5 @@
 """
-研途智探AI · 意图路由（轻量版）。
+MyResearcher · 意图路由（轻量版）。
 
 提供：
   - latest_user_text(messages)：取最近一条用户消息文本

@@ -5,7 +5,8 @@
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue'
 import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
+// 按需导入常用语言（默认入口打包全部 190+ 语言，曾使 bundle 达 1MB）
+import hljs from 'highlight.js/lib/common'
 import { normalizeMarkdown, reportTablesHealthy, injectMonthlyTrendLineChart, isKnownImageHost, findKnownImageUrls } from '../utils/markdown.js'
 
 /**
@@ -266,10 +267,12 @@ function enhancePriorityCellsDOM() {
  */
 let _mermaidReady = null
 async function ensureMermaid() {
-  if (_mermaidReady) return _mermaidReady
-  _mermaidReady = import('mermaid').then((mod) => {
-    const mermaid = mod.default || mod
-    const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  if (!_mermaidReady) {
+    _mermaidReady = import('mermaid').then((mod) => mod.default || mod)
+  }
+  return _mermaidReady.then((mermaid) => {
+    // 每次渲染前按当前 data-theme 重新初始化，主题切换后图表跟随
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark'
     mermaid.initialize({
       startOnLoad: false,
       theme: dark ? 'dark' : 'default',
@@ -278,7 +281,6 @@ async function ensureMermaid() {
     })
     return mermaid
   })
-  return _mermaidReady
 }
 
 async function enhanceMermaid() {
@@ -550,9 +552,7 @@ watch(() => props.citations, () => { nextTick(() => enhanceCitations()) })
   border-bottom: 1px solid var(--c-border);
 }
 .markdown-renderer tbody tr:nth-child(even) td { background: rgba(0, 0, 0, .02); }
-@media (prefers-color-scheme: dark) {
-  .markdown-renderer tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .03); }
-}
+:root[data-theme="dark"] .markdown-renderer tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .03); }
 .markdown-renderer tbody tr:hover td { background: var(--c-primary-soft); }
 .markdown-renderer tbody tr:last-child td { border-bottom: none; }
 

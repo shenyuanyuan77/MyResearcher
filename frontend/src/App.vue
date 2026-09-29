@@ -85,6 +85,7 @@
               <span class="badge badge-doi">🔗 真实 DOI 溯源</span>
               <span class="badge">CrossRef · OpenAlex · S2</span>
               <span class="badge">零幻觉</span>
+              <span class="badge badge-skill">⚡ {{ skills.length || 33 }} 个科研技能</span>
             </div>
           </div>
           <div class="quick-grid">
@@ -93,7 +94,8 @@
               :key="task.label"
               class="quick-task stagger-item"
               :style="{ '--i': i }"
-              @click="handleSend(task.message)"
+              :title="`点击把「${task.label}」指引装入输入框，补充内容后发送`"
+              @click="prefill(task.message)"
             >
               <span class="qt-icon">{{ task.icon }}</span>
               <div class="qt-body">
@@ -101,6 +103,51 @@
                 <span>{{ task.description }}</span>
               </div>
             </button>
+          </div>
+
+          <!-- 科研技能中心（六大分类 · 生命周期排序） -->
+          <div class="skills-block">
+            <div class="skills-head">
+              <h3 class="skills-title">科研技能中心</h3>
+              <span class="skills-count">{{ skills.length }} 个专家技能 · 点击装载到输入框，补充内容后发送</span>
+            </div>
+            <div class="skill-cat-row">
+              <button
+                class="skill-cat-pill"
+                :class="{ active: activeSkillCat === '全部' }"
+                @click="activeSkillCat = '全部'"
+              >
+                全部 <em class="pill-count">{{ skills.length }}</em>
+              </button>
+              <button
+                v-for="cat in skillCategories"
+                :key="cat.name"
+                class="skill-cat-pill"
+                :class="{ active: activeSkillCat === cat.name }"
+                @click="activeSkillCat = activeSkillCat === cat.name ? '全部' : cat.name"
+              >
+                {{ cat.icon }} {{ cat.name }} <em class="pill-count">{{ cat.count }}</em>
+              </button>
+            </div>
+            <div v-for="group in visibleSkillGroups" :key="group.name" class="skill-group">
+              <div class="skill-group-head">
+                <span class="skill-group-icon">{{ group.icon }}</span>
+                <span class="skill-group-name">{{ group.name }}</span>
+                <span class="skill-group-desc">{{ group.desc }} · {{ group.items.length }} 个技能</span>
+              </div>
+              <div class="skills-grid">
+                <button
+                  v-for="skill in group.items"
+                  :key="skill.id"
+                  class="skill-card"
+                  :title="`点击装载「${skill.zh}」，补充你的内容后发送`"
+                  @click="handleSkillPick(skill)"
+                >
+                  <span class="skill-zh">{{ skill.zh }}</span>
+                  <span class="skill-summary">{{ skill.summary }}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -111,6 +158,7 @@
           :show-tool-calls="showToolCalls"
           @quick-send="handleSend"
           @quote-reply="handleQuoteReply"
+          @open-pending="handleOpenPending"
         />
         <InterruptBanner
           v-if="interruptData"
@@ -137,7 +185,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import ChatArea from './components/ChatArea.vue'
 import InputArea from './components/InputArea.vue'
@@ -146,9 +194,10 @@ import LoginView from './components/LoginView.vue'
 import { streamChat, resumeChat } from './api/chat.js'
 import { deleteSession, getMessages, getSessions } from './api/history.js'
 import { fetchMe, getStoredUser, isLoggedIn, logout } from './api/auth.js'
+import { listSkills } from './api/skills.js'
 
 const workspace = {
-  name: '研途智探AI',
+  name: 'MyResearcher',
   role: '全周期数字科研导师',
   headline: '让每一次科研探索都有迹可循',
   description: '一个对话完成方向构建、文献检索精读、学者透视、跨界推演与 AI 审稿，全部文献锚定真实 DOI。',
@@ -181,6 +230,50 @@ const exportCitationStyle = ref('gbt7714')
 const exportPdfTemplate = ref('report')
 const presetText = ref('')  // 注入 InputArea 的预设文本（quote/edit）
 let abortController = null
+
+// ===== 科研技能中心（六大分类） =====
+const skills = ref([])
+const skillCategories = ref([])   // [{name, icon, desc, count}]（API 有序返回）
+const activeSkillCat = ref('全部')
+const visibleSkillGroups = computed(() => {
+  const meta = Object.fromEntries(skillCategories.value.map((c) => [c.name, c]))
+  const groups = skillCategories.value
+    .map((c) => ({
+      name: c.name,
+      icon: c.icon || '📦',
+      desc: c.desc || '',
+      items: skills.value.filter((s) => s.category === c.name),
+    }))
+    .filter((g) => g.items.length > 0)
+  // 兜底：技能里出现未知分类时补一个组
+  const known = new Set(groups.map((g) => g.name))
+  for (const s of skills.value) {
+    if (!known.has(s.category)) {
+      groups.push({ name: s.category, icon: '📦', desc: '', items: skills.value.filter((x) => x.category === s.category) })
+      known.add(s.category)
+    }
+  }
+  if (activeSkillCat.value === '全部') return groups
+  return groups.filter((g) => g.name === activeSkillCat.value)
+})
+async function loadSkills() {
+  const data = await listSkills()
+  skills.value = data.skills
+  skillCategories.value = data.categories
+}
+
+// 只把指引装入输入框，不直接发送——让用户先补充自己的内容/上下文
+function prefill(text) {
+  presetText.value = text
+}
+
+// 技能点击：装入技能调用模板（示例指令规整为以冒号结尾，提示用户续写）
+function handleSkillPick(skill) {
+  let base = (skill.example || `请用「${skill.zh}」技能帮我处理`).trim()
+  base = base.replace(/[。！？.!?]+$/, '')
+  if (!/[：:]$/.test(base)) base += '：'
+  prefill(base)
+}
 
 const HIDDEN_TOOL_NAMES = new Set([
   'write_todos', 'read_todos', 'todo_write', 'todo_read',
@@ -419,6 +512,9 @@ function handleUploadResult() {
 function handleOpenSettings() {
   alert('偏好设置面板即将上线。当前研究方向/认知等级已随对话自动学习（伴随式成长）。')
 }
+function handleOpenPending() {
+  alert('科研待办面板即将上线。当前卡片为工作台概览，待精读/待审阅等数据将随后续版本接入。')
+}
 function handleStop() { abortController?.abort() }
 
 async function exportReport(format) {
@@ -426,7 +522,7 @@ async function exportReport(format) {
   if (!currentThreadId.value) return
   exporting.value = true
   try {
-    const { getToken, extractApiError } = await import('./api/http.js')
+    const { getToken, clearAuth, extractApiError } = await import('./api/http.js')
     const token = getToken()
     const resp = await fetch('/api/report/export', {
       method: 'POST',
@@ -441,6 +537,11 @@ async function exportReport(format) {
         pdf_template: exportPdfTemplate.value,
       }),
     })
+    if (resp.status === 401) {
+      // 与 http.js 契约一致：token 失效时清凭证并触发全局重登录
+      clearAuth()
+      window.dispatchEvent(new CustomEvent('auth:required'))
+    }
     if (!resp.ok) {
       const body = await resp.json().catch(() => ({}))
       throw new Error(extractApiError(body, `导出失败 (${resp.status})`))
@@ -448,7 +549,7 @@ async function exportReport(format) {
     const blob = await resp.blob()
     const cd = resp.headers.get('content-disposition') || ''
     const m = cd.match(/filename="?([^"]+)"?/)
-    const filename = m ? m[1] : `研途智探报告.${format}`
+    const filename = m ? m[1] : `MyResearcher报告.${format}`
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -478,7 +579,7 @@ function handleLogout() {
 async function onLoginSuccess(user) {
   currentUser.value = user
   authed.value = true
-  await loadSessions()
+  await Promise.all([loadSessions(), loadSkills()])
 }
 function onAuthRequired() {
   authed.value = false
@@ -497,9 +598,10 @@ onMounted(async () => {
   if (authed.value) {
     try {
       currentUser.value = await fetchMe()
-      await loadSessions()
+      await Promise.all([loadSessions(), loadSkills()])
     } catch {
       onAuthRequired()
+      loadSkills()
     }
   }
 })
@@ -518,8 +620,8 @@ onUnmounted(() => {
   align-items: stretch;
   justify-content: center;
   background:
-    radial-gradient(1200px 700px at 18% 12%, rgba(0, 122, 255, .10), transparent 55%),
-    radial-gradient(900px 600px at 88% 78%, rgba(255, 159, 10, .08), transparent 50%),
+    radial-gradient(1200px 700px at 18% 12%, rgba(122, 90, 248, .13), transparent 55%),
+    radial-gradient(900px 600px at 88% 78%, rgba(193, 125, 255, .10), transparent 50%),
     var(--c-bg);
 }
 
@@ -620,7 +722,7 @@ onUnmounted(() => {
 .export-btn {
   font-size: var(--fz-mini); font-weight: 600; white-space: nowrap;
   padding: 7px 13px; border-radius: var(--r-pill);
-  background: var(--c-primary); color: #fff; border: none; cursor: pointer;
+  background: var(--brand-grad, var(--c-primary)); color: #fff; border: none; cursor: pointer;
   box-shadow: var(--sh-primary); transition: all var(--transition-fast);
 }
 .export-btn:hover:not(:disabled) { background: var(--c-primary-hover); transform: translateY(-1px); }
@@ -686,9 +788,12 @@ onUnmounted(() => {
 .intro-title {
   font-family: var(--font-display);
   font-size: var(--fz-hero);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: var(--tracking-tight);
-  color: var(--c-text);
+  background: var(--brand-grad, var(--c-primary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   margin: 10px 0 10px;
   line-height: 1.15;
 }
@@ -710,6 +815,7 @@ onUnmounted(() => {
   font-weight: 600;
 }
 .badge-doi { background: var(--c-accent-soft); color: var(--c-accent); border-color: transparent; }
+.badge-skill { background: var(--c-primary-soft); color: var(--c-primary); border-color: transparent; }
 
 .quick-grid {
   display: grid;
@@ -740,6 +846,75 @@ onUnmounted(() => {
 .stagger-item { animation: staggerIn .5s var(--ease-spring) backwards; animation-delay: calc(var(--i, 0) * 60ms); }
 @keyframes staggerIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ============ 科研技能中心（六大分类） ============ */
+.skills-block { max-width: var(--content-max); margin-top: 26px; }
+.skills-head {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px;
+}
+.skills-title {
+  font-family: var(--font-display);
+  font-size: var(--fz-h3); font-weight: 700; letter-spacing: var(--tracking-display);
+  color: var(--c-text);
+}
+.skills-count { font-size: var(--fz-mini); color: var(--c-text-tertiary); }
+.skill-cat-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.skill-cat-pill {
+  height: 30px; padding: 0 13px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-pill);
+  background: var(--c-surface);
+  color: var(--c-text-secondary);
+  font-size: var(--fz-mini); font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.skill-cat-pill:hover { border-color: var(--c-primary); color: var(--c-primary); }
+.skill-cat-pill.active {
+  background: var(--brand-grad, var(--c-primary));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 4px 12px rgba(122, 90, 248, .28);
+}
+.pill-count {
+  font-style: normal; font-size: 10px; opacity: .75;
+  padding: 1px 6px; border-radius: var(--r-pill);
+  background: rgba(120, 100, 200, .12);
+}
+.skill-cat-pill.active .pill-count { background: rgba(255, 255, 255, .22); }
+.skill-group { margin-bottom: 20px; }
+.skill-group-head {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px;
+  padding-bottom: 8px; border-bottom: 1px dashed var(--c-border-light);
+}
+.skill-group-icon { font-size: 16px; line-height: 1; }
+.skill-group-name { font-size: var(--fz-body); font-weight: 700; color: var(--c-text); }
+.skill-group-desc { font-size: var(--fz-mini); color: var(--c-text-tertiary); }
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.skill-card {
+  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  padding: 13px 14px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-xs);
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+.skill-card:hover {
+  border-color: var(--c-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--sh-md);
+}
+.skill-zh { font-size: var(--fz-body); font-weight: 600; color: var(--c-text); }
+.skill-summary {
+  font-size: var(--fz-mini); color: var(--c-text-tertiary); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 
 @media (max-width: 1100px) {
   .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

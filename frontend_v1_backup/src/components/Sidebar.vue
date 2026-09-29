@@ -3,7 +3,7 @@
     <div class="sidebar-header">
       <div class="logo">
         <span class="logo-icon">🎓</span>
-        <span class="logo-text">研途智探AI</span>
+        <span class="logo-text">MyResearcher</span>
       </div>
       <button class="new-chat-btn" @click="$emit('new-chat')">
         <span class="icon">+</span>

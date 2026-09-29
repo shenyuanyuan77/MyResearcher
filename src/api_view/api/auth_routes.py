@@ -1,4 +1,4 @@
-"""研途智探AI · 认证 API。"""
+"""MyResearcher · 认证 API。"""
 
 from __future__ import annotations
 
@@ -25,11 +25,15 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 
 _login_hits: Dict[str, Deque[float]] = defaultdict(deque)
 
+# 登录限流 IP 跟踪表上限（与 security_middleware._MAX_TRACKED_IPS 对齐）：
+# 防止攻击者用海量伪造 IP 撑爆 defaultdict 耗尽内存
+_MAX_TRACKED_LOGIN_IPS = 10_000
+
 
 def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    # 安全基线：不采信客户端可伪造的 X-Forwarded-For。后端直绑 0.0.0.0 对外时，
+    # 攻击者可轮换伪造 XFF 首段绕过每 IP 登录限流；故仅按 TCP 对端地址限流。
+    # 若部署在可信反向代理之后，请在代理层（如 nginx realip 模块）还原真实客户端 IP。
     if request.client:
         return request.client.host
     return "unknown"
@@ -39,6 +43,10 @@ def _rate_limit_login(ip: str) -> None:
     now = time.time()
     window = settings.rate_limit_window_sec
     max_attempts = settings.login_rate_limit_max
+    # 条目上限保护：淘汰最早插入的 IP（dict 保持插入序），防伪造海量 IP 耗尽内存
+    if len(_login_hits) > _MAX_TRACKED_LOGIN_IPS and ip not in _login_hits:
+        oldest = next(iter(_login_hits))
+        _login_hits.pop(oldest, None)
     q = _login_hits[ip]
     while q and now - q[0] > window:
         q.popleft()

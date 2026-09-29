@@ -23,7 +23,7 @@ from mcp_server.tools.unified import (
 
 _WORK_SELECT = (
     "id,doi,title,authorships,publication_year,cited_by_count,"
-    "primary_location,abstract_inverted_index,type,open_access,biblio,retracted,ids"
+    "primary_location,abstract_inverted_index,type,open_access,biblio,is_retracted,ids"
 )
 
 
@@ -55,8 +55,9 @@ def _parse_openalex_work(w: dict[str, Any]) -> Paper:
     abstract = rebuild_abstract_from_inverted_index(w.get("abstract_inverted_index"))
     biblio = w.get("biblio") or {}
     pub_type = _map_openalex_type((w.get("type") or "").lower())
-    # 撤稿：OpenAlex 在 work.retracted 或 best_oa_location 无直接字段，用 topics/keywords 间接；保守读 'retracted'
-    is_retracted = bool(w.get("retracted") or False)
+    # 撤稿：合法 select 字段为 is_retracted（曾误写 'retracted' 导致所有
+    # /works 查询 400，OpenAlex 整源静默失效并触发熔断连锁）
+    is_retracted = bool(w.get("is_retracted") or False)
     oa_bool = bool((oa or {}).get("is_oa") or bool(oa_url))
     # external_ids
     ext_ids: dict[str, str] = {}
@@ -136,15 +137,24 @@ async def openalex_search(
     cached = cache_get(cache_key)
     if cached is not None:
         return cached
-    # sort 映射
-    oa_sort = {
-        "cited": "cited_by_count:desc",
-        "newest": "publication_date:desc",
-        "relevance": "relevance_score:desc",
-    }.get(sort, "relevance_score:desc")
+    # sort 映射。注意：OpenAlex 中 sort 会覆盖 search 的相关性排序（search 退化为
+    # 宽松过滤器），按 cited_by_count:desc 排序会把与查询无关的全局高引论文顶到
+    # 最前（如搜 LLM agents 返回 ImageNet）。因此 cited 一律改为：服务端按
+    # relevance 召回 rows×3，客户端重排（与 crossref_search 同一策略）。
+    if sort == "cited":
+        fetch_rows = min(rows * 3, 60)
+        local_sort = "cited"
+        oa_sort = "relevance_score:desc"
+    else:
+        fetch_rows = rows
+        local_sort = ""
+        oa_sort = {
+            "newest": "publication_date:desc",
+            "relevance": "relevance_score:desc",
+        }.get(sort, "relevance_score:desc")
     params: dict[str, Any] = {
         "search": query,
-        "per-page": rows,
+        "per-page": fetch_rows,
         "select": _WORK_SELECT,
         "mailto": ACADEMIC_MAILTO,
         "sort": oa_sort,
@@ -173,6 +183,10 @@ async def openalex_search(
     if exclude_dois:
         excl = {d.lower() for d in exclude_dois}
         papers = [p for p in papers if (p.doi or "").lower() not in excl]
+    # 客户端重排（候选集已由服务端按 relevance 召回）
+    if local_sort == "cited":
+        papers.sort(key=lambda p: p.cited_by_count or 0, reverse=True)
+    papers = papers[:rows]
     cache_set(cache_key, papers)
     return papers
 
@@ -217,10 +231,13 @@ async def openalex_author_profile(
     cached = cache_get(cache_key)
     if cached is not None:
         return cached
-    # 1. 搜作者（补 coauthors/orcid/affiliations，供合作网络/消歧）
+    # 1. 搜作者（补 orcid/affiliations/topics 供消歧与主题分布。
+    #    注意：select 字段必须是 OpenAlex /authors 合法字段——曾因写入不存在的
+    #    `coauthors` 导致所有作者查询被 400 拒绝，整引擎瘫痪；如需合作网络，
+    #    走 works 的 authorships 维度另行查询）
     aparams: dict[str, Any] = {
         "search": name,
-        "select": "id,display_name,works_count,cited_by_count,summary_stats,affiliations,topics,last_known_institutions,ids,coauthors",
+        "select": "id,display_name,works_count,cited_by_count,summary_stats,affiliations,topics,last_known_institutions,ids",
         "per-page": 5,
         "mailto": ACADEMIC_MAILTO,
     }
@@ -234,7 +251,20 @@ async def openalex_author_profile(
     results = adata.get("results") or []
     if not results:
         return None
-    author = results[0]
+    # 消歧：search 结果按相关度可能把「同名不同人」（如 Jason Wei → JASON KAI
+    # WEI LEE）排在前。优先精确同名，其次查询词完整覆盖的姓名，最后才取首位。
+    import re as _re
+
+    def _norm_name(s: str) -> str:
+        return _re.sub(r"[^a-z0-9一-鿿 ]", " ", (s or "").lower()).split()
+
+    q_tokens = set(_norm_name(name))
+    exact = [a for a in results if set(_norm_name(a.get("display_name") or "")) == q_tokens]
+    subset = [
+        a for a in results
+        if q_tokens and q_tokens.issubset(set(_norm_name(a.get("display_name") or "")))
+    ]
+    author = (exact or subset or results)[0]
     author_id = (author.get("id") or "").rsplit("/", 1)[-1]
 
     # 2. 取该作者被引最高的代表作
@@ -242,7 +272,7 @@ async def openalex_author_profile(
         "filter": f"author.id:{author_id}",
         "sort": "cited_by_count:desc",
         "per-page": 8,
-        "select": "id,doi,title,publication_year,cited_by_count,primary_location",
+        "select": "id,doi,title,publication_year,cited_by_count,primary_location,authorships",
         "mailto": ACADEMIC_MAILTO,
     }
     if OPENALEX_API_KEY:
@@ -263,14 +293,19 @@ async def openalex_author_profile(
         {"name": (t.get("display_name") or ""), "count": t.get("count", 0)}
         for t in (author.get("topics") or [])[:6]
     ]
-    # 合作网络（coauthors Top 10）
-    coauthors = []
-    for ca in (author.get("coauthors") or [])[:10]:
-        coauthors.append({
-            "name": ca.get("display_name") or "",
-            "id": (ca.get("id") or "").rsplit("/", 1)[-1],
-            "works_count": ca.get("works_count", 0),
-        })
+    # 合作网络：从代表作的 authorships 聚合高频合作者（/authors 对象无内联
+    # coauthors 字段；曾因此写入非法 select 字段导致整个作者引擎 400）
+    coauthor_counts: dict[str, int] = {}
+    for w in (wdata.get("results") or [])[:8] if wdata else []:
+        for au in (w.get("authorships") or []):
+            ca_name = ((au.get("author") or {}).get("display_name") or "").strip()
+            if not ca_name or ca_name.lower() == (author.get("display_name") or "").lower():
+                continue
+            coauthor_counts[ca_name] = coauthor_counts.get(ca_name, 0) + 1
+    coauthors = [
+        {"name": nm, "works_count": cnt}
+        for nm, cnt in sorted(coauthor_counts.items(), key=lambda kv: -kv[1])[:10]
+    ]
     # ORCID / 机构
     author_ids = author.get("ids") or {}
     orcid = author_ids.get("orcid") or ""

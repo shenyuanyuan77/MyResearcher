@@ -1,5 +1,5 @@
 """
-研途智探AI · 文件上传 API。
+MyResearcher · 文件上传 API。
 
 支持 PDF / Word 上传：
   - PDF：走 pdf_distill 抽全文，返回精读结构（创新点/方法/可引用句）

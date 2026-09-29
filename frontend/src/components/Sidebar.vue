@@ -9,7 +9,7 @@
     <div class="brand-block" v-if="!collapsed">
       <div class="brand-logo">🎓</div>
       <div class="brand-copy">
-        <div class="brand-title">研途智探AI</div>
+        <div class="brand-title">MyResearcher</div>
         <div class="brand-sub">科研探索助手</div>
       </div>
     </div>
@@ -105,6 +105,15 @@
         <span class="user-name">{{ currentUser?.username || currentUser?.user_id || 'yanjiu' }}</span>
         <AppIcon name="chevronDown" :size="12" />
       </button>
+      <button
+        class="settings-btn"
+        type="button"
+        :aria-label="themeLabel"
+        :title="themeLabel"
+        @click="onCycleTheme"
+      >
+        <AppIcon :name="themeResolved === 'dark' ? 'moon' : 'sun'" :size="15" />
+      </button>
       <button class="settings-btn" type="button" aria-label="设置" @click="$emit('open-settings')">
         <AppIcon name="cog" :size="15" />
       </button>
@@ -128,9 +137,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import WorkspaceNav from './WorkspaceNav.vue'
 import AppIcon from './AppIcon.vue'
+import { getStoredTheme, resolvedTheme, cycleTheme } from '../theme.js'
 
 const props = defineProps({
   sessions: { type: Array, default: () => [] },
@@ -197,6 +207,16 @@ const avatarLetter = computed(() =>
   String(props.currentUser?.username || props.currentUser?.user_id || 'Y').slice(0, 1).toUpperCase()
 )
 
+// ===== 主题切换（浅色 → 深色 → 跟随系统 循环） =====
+const THEME_LABEL = { auto: '跟随系统', light: '浅色模式', dark: '深色模式' }
+const themeMode = ref(getStoredTheme())
+const themeResolved = ref(resolvedTheme())
+const themeLabel = computed(() => `主题：${THEME_LABEL[themeMode.value]}（点击切换）`)
+function onCycleTheme() {
+  themeMode.value = cycleTheme()
+  themeResolved.value = resolvedTheme(themeMode.value)
+}
+
 function onNewChat() { emit('new-chat'); emit('close-drawer') }
 function onNavigate(v) { emit('navigate', v); emit('close-drawer') }
 function onKeydown(e) { if (e.key === 'Escape') emit('close-drawer') }
@@ -260,8 +280,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: var(--c-surface);
-  border: 1px solid var(--c-border-light);
+  background: var(--brand-grad-soft, var(--c-primary-soft));
+  border: 1px solid var(--c-primary-soft-strong);
   box-shadow: var(--sh-sm);
   display: flex;
   align-items: center;
@@ -316,16 +336,16 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   gap: 8px;
   border: none;
   border-radius: 14px;
-  background: var(--c-primary);
+  background: var(--brand-grad, var(--c-primary));
   color: #fff;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(0, 122, 255, .22);
-  transition: transform var(--transition-fast), background var(--transition-fast);
+  box-shadow: 0 6px 16px rgba(122, 90, 248, .28);
+  transition: transform var(--transition-fast), filter var(--transition-fast);
 }
 .is-collapsed .new-chat-btn { width: 40px; padding: 0; }
-.new-chat-btn:hover { background: var(--c-primary-hover); transform: translateY(-1px); }
+.new-chat-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
 
 .nav-wrap { padding: 4px 10px 8px; }
 .nav-collapsed {
@@ -394,9 +414,12 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   cursor: pointer;
   margin-bottom: 2px;
 }
-.session-item:hover,
-.session-item.active {
+.session-item:hover {
   background: var(--c-surface-alt, rgba(255, 255, 255, .72));
+}
+.session-item.active {
+  background: var(--c-primary-soft);
+  box-shadow: inset 2px 0 0 var(--c-primary);
 }
 .session-title {
   display: block;
@@ -447,7 +470,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #7c8cff, #5ac8fa);
+  background: var(--brand-grad, linear-gradient(135deg, #7a5af8, #b166ff));
   color: #fff;
   font-size: 13px;
   font-weight: 700;

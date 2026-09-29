@@ -1,7 +1,7 @@
 {
-  "name": "yanjiu-zhitan-frontend",
+  "name": "myresearcher-frontend",
   "version": "1.0.0",
-  "description": "研途智探AI · 数字科研导师前端 - 基于 Vue 3",
+  "description": "MyResearcher · 数字科研导师前端 - 基于 Vue 3",
   "type": "module",
   "scripts": {
     "dev": "vite",

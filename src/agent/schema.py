@@ -1,5 +1,5 @@
 """
-研途智探AI · 数据结构定义。
+MyResearcher · 数据结构定义。
 包含运行时上下文、用户偏好、对话/会话/SSE 模型。
 """
 
@@ -105,6 +105,9 @@ class Message(BaseModel):
     text: Optional[str] = None
     images: Optional[List[str]] = None
     args: Optional[str] = None
+    # 结构化文献引用（学术工具结果提取的 DOI 富卡片数据，chat.py 写入 dm["references"]，
+    # 前端 MessageItem.vue 渲染 message.references；历史回载必须透传，否则零幻觉溯源卡片丢失）
+    references: Optional[List[Dict[str, Any]]] = None
 
 
 class ChatResponse(BaseModel):

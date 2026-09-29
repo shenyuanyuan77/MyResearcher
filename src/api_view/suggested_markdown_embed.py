@@ -1,4 +1,4 @@
-"""研途智探AI · suggested_markdown 注入（轻量存根）。
+"""MyResearcher · suggested_markdown 注入（轻量存根）。
 
 工具返回的 suggested_markdown（如 paper_search 的文献表）应作为该工具
 对应助手气泡的正文来源，而非模型手抄。这里做轻量应用。

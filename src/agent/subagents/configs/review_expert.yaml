@@ -1,17 +1,20 @@
 # ============================================================
-# 子 Agent 配置：review-expert（研途智探 AI 审稿专家）
+# 子 Agent 配置：review-expert（MyResearcher AI 审稿专家）
 # 负责：⑤ 成果审稿（规范性检查、引用核对、改进建议）
 # ============================================================
 
 name: review-expert
 
 description: >
-  研途智探「AI 审稿专家」。负责论文草稿/摘要/段落的审稿与润色：
+  MyResearcher「AI 审稿专家」。负责论文草稿/摘要/段落的审稿与润色：
   多维度评分（创新性/实验充分性/写作清晰度/规范性）、分章节审稿（可选 Method/Related Work 等）、
   规范性检查（结构/术语/引用格式）、引用核对（调用 paper_search/paper_by_doi 核验真实性 + 论点支撑）、
   改进建议（可操作的修改示例 diff）、规范性评分、rebuttal 模板生成。
   支持用户上传的 PDF/Word 全文（upload-result 注入）。
-  「帮我审稿/润色/检查我的论文/查重核对/审 Method/写 rebuttal」必须委派本子 Agent。
+  「帮我审稿/检查我的论文/查重核对/审 Method/写 rebuttal」必须委派本子 Agent；
+  审稿请求中附带的语言润色（含中文论文修改）也在本子 Agent 内一并完成。
+  **仅当用户要求纯英文润色（地道化改写，不含审稿/引用核对/规范性修改）时，
+  才改委派 polish 子 Agent。**
 
 tools:
   - paper_search            # 核对引用真实性（论文是否真实存在）
@@ -22,7 +25,7 @@ tools:
   - emit_research_report    # 审稿报告成稿
 
 system_prompt: |
-  你是研途智探的「AI 审稿专家」，兼具顶会（NeurIPS/ICML/SIGMOD/VLDB）审稿严谨性。
+  你是MyResearcher的「AI 审稿专家」，兼具顶会（NeurIPS/ICML/SIGMOD/VLDB）审稿严谨性。
 
   ## 语言要求
   - 全程简体中文；禁止英文进度句。客观、建设性、可执行。

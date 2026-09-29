@@ -1,56 +1,63 @@
-/* Apple/iOS design tokens — aligned to reference PNG */
+/* LobeChat 风格设计令牌 — 紫罗兰渐变 · 大圆角 · 通透浅色 */
+/* 主题由 <html data-theme="light|dark"> 驱动（src/theme.js 早加载设置） */
 :root {
-  color-scheme: light dark;
-  --c-primary: #007AFF;
-  --c-primary-hover: #0064d1;
-  --c-primary-pressed: #004fa3;
-  --c-primary-soft: rgba(0, 122, 255, .12);
-  --c-primary-soft-strong: rgba(0, 122, 255, .20);
-  --c-accent: #7c3aed;
-  --c-accent-soft: rgba(124, 58, 237, .10);
-  --c-success: #1a7f37;
-  --c-success-bright: #30d158;
-  --c-success-soft: rgba(48, 209, 88, .14);
-  --c-warning: #b25000;
-  --c-warning-bright: #ff9f0a;
-  --c-warning-soft: rgba(255, 159, 10, .15);
-  --c-danger: #c1271f;
-  --c-danger-bright: #ff453a;
-  --c-danger-soft: rgba(255, 69, 58, .13);
-  --c-muted: #94a3b8;
-  --c-muted-soft: rgba(148, 163, 184, .12);
+  color-scheme: light;
+  /* 品牌主色：紫罗兰（操作/链接/选中） */
+  --c-primary: #7a5af8;
+  --c-primary-hover: #6a48f0;
+  --c-primary-pressed: #5b3ee0;
+  --c-primary-soft: rgba(122, 90, 248, .10);
+  --c-primary-soft-strong: rgba(122, 90, 248, .20);
+  /* 品牌渐变（主按钮/Logo/强调标题） */
+  --brand-grad: linear-gradient(135deg, #7a5af8 0%, #b166ff 100%);
+  --brand-grad-soft: linear-gradient(135deg, rgba(122, 90, 248, .14), rgba(177, 102, 255, .14));
+  --c-accent: #c05be8;
+  --c-accent-soft: rgba(192, 91, 232, .10);
+  --c-success: #18a058;
+  --c-success-bright: #2ecc71;
+  --c-success-soft: rgba(46, 204, 113, .14);
+  --c-warning: #d97706;
+  --c-warning-bright: #ffb020;
+  --c-warning-soft: rgba(255, 176, 32, .15);
+  --c-danger: #e5484d;
+  --c-danger-bright: #ff5d5d;
+  --c-danger-soft: rgba(255, 93, 93, .12);
+  --c-muted: #9b9aa7;
+  --c-muted-soft: rgba(155, 154, 167, .14);
 
-  --c-bg: #eef1f6;
+  /* 底色带淡紫罗兰倾向（LobeChat 通透浅色） */
+  --c-bg: #f4f2fa;
   --c-surface: #ffffff;
-  --c-surface-2: #fbfbfd;
-  --c-surface-alt: #f5f6fa;
+  --c-surface-2: #faf9fd;
+  --c-surface-alt: #f6f4fb;
   --c-surface-elev: #ffffff;
-  --c-border: rgba(15, 23, 42, .08);
-  --c-border-light: rgba(15, 23, 42, .04);
-  --c-border-strong: rgba(15, 23, 42, .12);
-  --c-text: #1d1d1f;
-  --c-text-secondary: #5c5c64;
-  --c-text-tertiary: #8e8e96;
+  --c-border: rgba(58, 48, 108, .10);
+  --c-border-light: rgba(58, 48, 108, .05);
+  --c-border-strong: rgba(58, 48, 108, .16);
+  --c-text: #241f3a;
+  --c-text-secondary: #55516b;
+  --c-text-tertiary: #908ca3;
   --c-text-on-primary: #fff;
-  --c-overlay: rgba(15, 23, 42, .28);
-  --c-user-bubble: #edf3ff;
-  --c-shimmer: linear-gradient(90deg, var(--c-surface-alt) 25%, #ececf1 37%, var(--c-surface-alt) 63%);
+  --c-overlay: rgba(30, 24, 60, .32);
+  /* 用户气泡：柔和紫罗兰 */
+  --c-user-bubble: #ece7fd;
+  --c-shimmer: linear-gradient(90deg, var(--c-surface-alt) 25%, #edeaf6 37%, var(--c-surface-alt) 63%);
 
   --r-xs: 6px;
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 20px;
-  --r-2xl: 24px;
-  --r-window: 28px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-2xl: 28px;
+  --r-window: 32px;
   --r-pill: 999px;
 
-  --sh-xs: 0 1px 2px rgba(15, 23, 42, .04);
-  --sh-sm: 0 2px 8px rgba(15, 23, 42, .05);
-  --sh-md: 0 8px 24px rgba(15, 23, 42, .08);
-  --sh-lg: 0 16px 40px rgba(15, 23, 42, .10);
-  --sh-xl: 0 28px 80px rgba(15, 23, 42, .14);
-  --sh-primary: 0 8px 24px rgba(0, 122, 255, .28);
+  --sh-xs: 0 1px 2px rgba(58, 48, 108, .05);
+  --sh-sm: 0 2px 10px rgba(58, 48, 108, .06);
+  --sh-md: 0 8px 28px rgba(58, 48, 108, .09);
+  --sh-lg: 0 16px 44px rgba(58, 48, 108, .12);
+  --sh-xl: 0 28px 80px rgba(58, 48, 108, .16);
+  --sh-primary: 0 8px 24px rgba(122, 90, 248, .30);
 
   --glass-bg: rgba(255, 255, 255, .78);
   --glass-bg-strong: rgba(255, 255, 255, .90);
@@ -82,7 +89,7 @@
   --header-h: 72px;
   --row-h: 46px;
   --main-pad: 28px;
-  --content-max: 920px;
+  --content-max: 1040px;
   --window-pad: 18px;
 
   --ease-ios: cubic-bezier(.32, .72, 0, 1);
@@ -97,39 +104,86 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --c-primary: #0a84ff;
-    --c-primary-hover: #409cff;
-    --c-primary-pressed: #2670cc;
-    --c-primary-soft: rgba(10, 132, 255, .18);
-    --c-primary-soft-strong: rgba(10, 132, 255, .28);
-    --c-accent: #a78bfa;
-    --c-accent-soft: rgba(167, 139, 250, .18);
-    --c-success: #30d158;
-    --c-success-bright: #30d158;
-    --c-success-soft: rgba(48, 209, 88, .18);
-    --c-warning: #ff9f0a;
-    --c-warning-bright: #ff9f0a;
-    --c-warning-soft: rgba(255, 159, 10, .18);
-    --c-danger: #ff453a;
-    --c-danger-bright: #ff453a;
-    --c-danger-soft: rgba(255, 69, 58, .18);
-    --c-muted: #8e8e93;
-    --c-muted-soft: rgba(142, 142, 147, .16);
-    --c-bg: #0b0b0f;
-    --c-surface: #1c1c1e;
-    --c-surface-2: #2c2c2e;
-    --c-surface-alt: #2c2c2e;
-    --c-surface-elev: #2c2c2e;
-    --c-border: rgba(255, 255, 255, .08);
-    --c-border-light: rgba(255, 255, 255, .04);
-    --c-border-strong: rgba(255, 255, 255, .14);
-    --c-text: #f5f5f7;
-    --c-text-secondary: #d1d1d6;
-    --c-text-tertiary: #8e8e93;
-    --c-user-bubble: rgba(10, 132, 255, .16);
-    --c-overlay: rgba(0, 0, 0, .55);
-    --glass-bg: rgba(28, 28, 30, .72);
-    --glass-bg-strong: rgba(28, 28, 30, .88);
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --c-primary: #9b8bff;
+    --c-primary-hover: #b3a6ff;
+    --c-primary-pressed: #8672f2;
+    --c-primary-soft: rgba(155, 139, 255, .16);
+    --c-primary-soft-strong: rgba(155, 139, 255, .26);
+    --brand-grad: linear-gradient(135deg, #8a6bff 0%, #c17dff 100%);
+    --brand-grad-soft: linear-gradient(135deg, rgba(138, 107, 255, .20), rgba(193, 125, 255, .20));
+    --c-accent: #d38bff;
+    --c-accent-soft: rgba(211, 139, 255, .16);
+    --c-success: #2ecc71;
+    --c-success-bright: #2ecc71;
+    --c-success-soft: rgba(46, 204, 113, .16);
+    --c-warning: #ffb020;
+    --c-warning-bright: #ffb020;
+    --c-warning-soft: rgba(255, 176, 32, .16);
+    --c-danger: #ff5d5d;
+    --c-danger-bright: #ff5d5d;
+    --c-danger-soft: rgba(255, 93, 93, .16);
+    --c-muted: #8e8b9e;
+    --c-muted-soft: rgba(142, 139, 158, .18);
+    --c-bg: #131218;
+    --c-surface: #1d1c24;
+    --c-surface-2: #23222c;
+    --c-surface-alt: #23222c;
+    --c-surface-elev: #23222c;
+    --c-surface-hover: rgba(255, 255, 255, .08);
+    --c-border: rgba(255, 255, 255, .09);
+    --c-border-light: rgba(255, 255, 255, .05);
+    --c-border-strong: rgba(255, 255, 255, .15);
+    --c-text: #f2f0fa;
+    --c-text-secondary: #c9c5da;
+    --c-text-tertiary: #8e8b9e;
+    --c-user-bubble: rgba(138, 107, 255, .22);
+    --c-overlay: rgba(0, 0, 0, .58);
+    --c-shimmer: linear-gradient(90deg, var(--c-surface-2) 25%, #2d2c39 37%, var(--c-surface-2) 63%);
+    --glass-bg: rgba(29, 28, 36, .74);
+    --glass-bg-strong: rgba(29, 28, 36, .90);
   }
+}
+
+/* 手动深色：JS 设置 data-theme="dark"（优先级高于系统跟随） */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-primary: #9b8bff;
+  --c-primary-hover: #b3a6ff;
+  --c-primary-pressed: #8672f2;
+  --c-primary-soft: rgba(155, 139, 255, .16);
+  --c-primary-soft-strong: rgba(155, 139, 255, .26);
+  --brand-grad: linear-gradient(135deg, #8a6bff 0%, #c17dff 100%);
+  --brand-grad-soft: linear-gradient(135deg, rgba(138, 107, 255, .20), rgba(193, 125, 255, .20));
+  --c-accent: #d38bff;
+  --c-accent-soft: rgba(211, 139, 255, .16);
+  --c-success: #2ecc71;
+  --c-success-bright: #2ecc71;
+  --c-success-soft: rgba(46, 204, 113, .16);
+  --c-warning: #ffb020;
+  --c-warning-bright: #ffb020;
+  --c-warning-soft: rgba(255, 176, 32, .16);
+  --c-danger: #ff5d5d;
+  --c-danger-bright: #ff5d5d;
+  --c-danger-soft: rgba(255, 93, 93, .16);
+  --c-muted: #8e8b9e;
+  --c-muted-soft: rgba(142, 139, 158, .18);
+  --c-bg: #131218;
+  --c-surface: #1d1c24;
+  --c-surface-2: #23222c;
+  --c-surface-alt: #23222c;
+  --c-surface-elev: #23222c;
+  --c-surface-hover: rgba(255, 255, 255, .08);
+  --c-border: rgba(255, 255, 255, .09);
+  --c-border-light: rgba(255, 255, 255, .05);
+  --c-border-strong: rgba(255, 255, 255, .15);
+  --c-text: #f2f0fa;
+  --c-text-secondary: #c9c5da;
+  --c-text-tertiary: #8e8b9e;
+  --c-user-bubble: rgba(138, 107, 255, .22);
+  --c-overlay: rgba(0, 0, 0, .58);
+  --c-shimmer: linear-gradient(90deg, var(--c-surface-2) 25%, #2d2c39 37%, var(--c-surface-2) 63%);
+  --glass-bg: rgba(29, 28, 36, .74);
+  --glass-bg-strong: rgba(29, 28, 36, .90);
 }

@@ -33,9 +33,9 @@ _MAX_TRACKED_IPS = 10_000
 
 
 def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    # 安全基线：不采信客户端可伪造的 X-Forwarded-For（后端直绑 0.0.0.0 对外时，
+    # 攻击者可轮换伪造 XFF 绕过每 IP 全局限流）；仅按 TCP 对端地址限流。
+    # 若部署在可信反向代理之后，请在代理层（如 nginx realip 模块）还原真实客户端 IP。
     if request.client:
         return request.client.host
     return "unknown"
@@ -107,11 +107,10 @@ class _RedisRateLimiter:
 
 
 def _build_rate_limiter():
-    """根据 RATELIMIT_BACKEND 构建限流器。redis 失败自动回退内存。"""
-    import os
-    backend = os.getenv("RATELIMIT_BACKEND", "memory").strip().lower()
+    """根据 ratelimit_backend 构建限流器。redis 失败自动回退内存。"""
+    backend = settings.ratelimit_backend.strip().lower()
     if backend == "redis":
-        redis_url = os.getenv("REDIS_URL", "").strip()
+        redis_url = settings.redis_url.strip()
         if redis_url:
             return _RedisRateLimiter(redis_url)
     return _MemoryRateLimiter()

@@ -1,5 +1,5 @@
 """
-研途智探AI · 主 Agent 入口。
+MyResearcher · 主 Agent 入口。
 
 使用 DeepAgents `create_deep_agent` 将五大引擎工具 + 2 个子 Agent 串联为
 可运行的「科研导师」。采用 async graph factory 模式。
@@ -41,6 +41,7 @@ from agent.middlewares.tools_summarization import build_summarization_middleware
 from agent.schema import ResearchContext
 from agent.subagents.loader import load_subagent_configs, resolve_subagent_tools
 from agent.tools.emit_research_report import emit_research_report
+from agent.tools.research_skills import load_research_skill
 from agent.tools.system_date import get_system_date
 from agent.tools.mcp_client import load_mcp_tools
 from agent.tools.save_report_locally import create_save_report_tool
@@ -70,8 +71,8 @@ logger = logging.getLogger(__name__)
 
 
 async def create_main_agent(config: Optional[RunnableConfig] = None):
-    """创建研途智探科研导师 Agent。"""
-    logger.info("=== 开始创建研途智探AI 科研导师 ===")
+    """创建MyResearcher科研导师 Agent。"""
+    logger.info("=== 开始创建MyResearcher 科研导师 ===")
 
     from agent.settings import settings
     from api_view.runtime_status import runtime_status
@@ -102,6 +103,7 @@ async def create_main_agent(config: Optional[RunnableConfig] = None):
         list(academic_tools)
         + [web_search, get_system_date]
         + [write_markdown_table, emit_research_report, save_report_locally]
+        + [load_research_skill]
     )
     logger.info("  工具池: %d 个工具", len(available_tools))
 
@@ -170,6 +172,7 @@ async def create_main_agent(config: Optional[RunnableConfig] = None):
             write_markdown_table,
             emit_research_report,
             save_report_locally,
+            load_research_skill,
             *quick_query_tools,
         ],
         subagents=subagents,
@@ -179,7 +182,7 @@ async def create_main_agent(config: Optional[RunnableConfig] = None):
         context_schema=ResearchContext,
     )
 
-    logger.info("=== 研途智探AI 科研导师创建完成 ===")
+    logger.info("=== MyResearcher 科研导师创建完成 ===")
     runtime_status.ready = True
     return agent_graph
 

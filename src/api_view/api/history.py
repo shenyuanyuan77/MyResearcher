@@ -433,6 +433,7 @@ async def get_session_messages(
                 text=item.get("text"),
                 images=item.get("images"),
                 args=item.get("args"),
+                references=item.get("references"),
             )
             message_list.append(message)
 

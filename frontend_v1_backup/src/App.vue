@@ -80,7 +80,7 @@ import { deleteSession, getMessages, getSessions } from './api/history.js'
 import { fetchMe, getStoredUser, isLoggedIn, logout } from './api/auth.js'
 
 const workspace = {
-  name: '研途智探AI',
+  name: 'MyResearcher',
   role: '全周期数字科研导师',
   description: '一个对话完成方向构建、文献检索精读、学者透视、跨界推演与 AI 审稿，全部文献锚定真实 DOI。',
   placeholder: '输入研究方向、检索词、学者姓名，或直接描述你的科研问题...',

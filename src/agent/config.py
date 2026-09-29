@@ -1,5 +1,5 @@
 """
-研途智探AI · Agent 配置中心。
+MyResearcher · Agent 配置中心。
 
 精简自采购助手：
   - 去掉 opensandbox（研途场景无需代码执行）

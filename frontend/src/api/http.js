@@ -1,7 +1,7 @@
 /**
  * 统一 HTTP 辅助：鉴权 Token 注入
  *
- * 存储 key 历史遗留 erp_openclaw_*（采购项目残留），已迁移为 yzzt_*（研途智探）。
+ * 存储 key 历史遗留 erp_openclaw_*（采购项目残留），已迁移为 yzzt_*（MyResearcher）。
  * 首次读取时若新 key 不存在但旧 key 存在，自动迁移，避免用户被登出。
  */
 
@@ -28,17 +28,30 @@ function _migrateLegacyKeys() {
 _migrateLegacyKeys()
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || ''
+  try {
+    return localStorage.getItem(TOKEN_KEY) || ''
+  } catch {
+    /* localStorage 不可用（隐私模式/禁用存储）时返回空，走未登录链路 */
+    return ''
+  }
 }
 
 export function setAuth(token, user) {
-  localStorage.setItem(TOKEN_KEY, token)
-  localStorage.setItem(USER_KEY, JSON.stringify(user || {}))
+  try {
+    localStorage.setItem(TOKEN_KEY, token)
+    localStorage.setItem(USER_KEY, JSON.stringify(user || {}))
+  } catch {
+    /* localStorage 不可用时静默忽略：本次会话内存态仍可用 */
+  }
 }
 
 export function clearAuth() {
-  localStorage.removeItem(TOKEN_KEY)
-  localStorage.removeItem(USER_KEY)
+  try {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(USER_KEY)
+  } catch {
+    /* localStorage 不可用时静默忽略 */
+  }
 }
 
 export function getStoredUser() {

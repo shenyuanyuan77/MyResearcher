@@ -1,4 +1,4 @@
-# 研途智探AI 网页版 · Python 依赖
+# MyResearcher 网页版 · Python 依赖
 # 精简自采购助手参考工程（去 opensandbox / mongo / pywin32）
 
 # ---- LangGraph + deepagents（Agent 运行时）----

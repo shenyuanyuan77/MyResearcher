@@ -1,5 +1,5 @@
 """
-统一配置中心（研途智探AI 网页版）。
+统一配置中心（MyResearcher 网页版）。
 
 所有可变配置从环境变量读取。通过 `from agent.settings import settings` 使用。
 精简自采购助手：去 Mongo/Sandbox，默认 SQLite checkpoint。
@@ -131,6 +131,11 @@ class Settings:
         default_factory=lambda: _int("RATE_LIMIT_MAX_REQUESTS", 180)
     )
     login_rate_limit_max: int = field(default_factory=lambda: _int("LOGIN_RATE_LIMIT_MAX", 10))
+    # 限流后端：memory（默认，单实例）| redis（多实例共享计数，需 redis_url，连不上自动回退内存）
+    ratelimit_backend: str = field(
+        default_factory=lambda: os.getenv("RATELIMIT_BACKEND", "memory")
+    )
+    redis_url: str = field(default_factory=lambda: os.getenv("REDIS_URL", ""))
     security_headers_enabled: bool = field(
         default_factory=lambda: _bool("SECURITY_HEADERS_ENABLED", True)
     )
@@ -139,7 +144,7 @@ class Settings:
     backend_port: int = field(default_factory=lambda: _int("BACKEND_PORT", 8000))
     frontend_port: int = field(default_factory=lambda: _int("FRONTEND_PORT", 3001))
     api_title: str = field(
-        default_factory=lambda: os.getenv("API_TITLE", "研途智探AI 科研导师 API")
+        default_factory=lambda: os.getenv("API_TITLE", "MyResearcher 科研导师 API")
     )
     api_version: str = field(default_factory=lambda: os.getenv("API_VERSION", "1.0.0"))
 

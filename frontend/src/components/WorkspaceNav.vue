@@ -58,10 +58,10 @@ const workbenchItems = [
   transition: background var(--transition-fast);
   font-family: var(--font-body);
 }
-.nav-item:hover { background: rgba(255, 255, 255, .55); }
+.nav-item:hover { background: var(--c-muted-soft); }
 .nav-item.active {
-  background: rgba(255, 255, 255, .82);
-  box-shadow: var(--sh-xs);
+  background: var(--c-primary-soft);
+  box-shadow: inset 2px 0 0 var(--c-primary);
 }
 .nav-item:focus-visible {
   outline: 2px solid var(--c-primary);

@@ -4,7 +4,7 @@
  * 提供流式对话、中断恢复和会话状态查询接口
  */
 
-import { authHeaders, apiFetch, extractApiError } from './http.js'
+import { authHeaders } from './http.js'
 
 const API_BASE = '/api/chat'
 
@@ -281,39 +281,4 @@ async function _processStream(response, threadId, callbacks, fullContent, toolCa
     content: fullContent,
     tool_calls: toolCalls
   }
-}
-
-/**
- * 获取会话状态
- *
- * @param {string} threadId - 会话 ID
- * @returns {Promise} 返回会话状态对象
- */
-export async function getChatState(threadId) {
-  const response = await apiFetch(`${API_BASE}/${threadId}`)
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(extractApiError(body, '获取会话状态失败'))
-  }
-
-  return response.json()
-}
-
-/**
- * 获取会话历史状态列表
- *
- * @param {string} threadId - 会话 ID
- * @param {number} limit - 返回的最大状态数量
- * @returns {Promise} 返回状态历史列表
- */
-export async function getChatHistory(threadId, limit = 50) {
-  const response = await apiFetch(`${API_BASE}/${threadId}/history?limit=${limit}`)
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(extractApiError(body, '获取会话历史失败'))
-  }
-
-  return response.json()
 }

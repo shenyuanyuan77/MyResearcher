@@ -50,7 +50,7 @@ class ContextInjectionMiddleware(AgentMiddleware):
         )
 
         workspace_notice = {
-            "assistant": "当前用户在研途智探主工作台，可自由使用五大引擎（方向构建/情报提纯/资产透视/跨界启发/审稿）。",
+            "assistant": "当前用户在MyResearcher主工作台，可自由使用五大引擎（方向构建/情报提纯/资产透视/跨界启发/审稿）。",
         }.get(workspace, "")
         notice = (
             f"【系统上下文·勿向用户复述】\n"

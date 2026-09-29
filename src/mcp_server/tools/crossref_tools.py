@@ -130,21 +130,27 @@ async def crossref_search(
     pub_type: article / conference / preprint / book / chapter
     """
     rows = max(1, min(int(rows or 10), 40))
+    # CrossRef 一旦按非 relevance 字段排序（is-referenced-by-count / published），
+    # 查询相关性排序即被完全忽略——实测即便 query.bibliographic 也返回与查询无关的
+    # 全局高引论文（如搜 RAG 返回 DFT 物理论文）。因此 cited/published 一律改为：
+    # 服务端按 relevance 召回 rows×3（上限 60），由本函数客户端重排后再截断。
+    if sort in ("cited", "published", "newest"):
+        fetch_rows = min(rows * 3, 60)
+        local_sort = "cited" if sort == "cited" else "published"
+    else:
+        fetch_rows = rows
+        local_sort = ""
     cache_key = f"cr_search:{query}:{rows}:{year_from}:{year_to}:{pub_type}:{sort}:{sorted(exclude_dois or [])}"
     cached = cache_get(cache_key)
     if cached is not None:
         return cached
 
-    # sort 映射：relevance/published/cited
-    cr_sort = {
-        "cited": "is-referenced-by-count",
-        "published": "published",
-        "newest": "published",
-    }.get(sort, "relevance")
+    # sort 映射：服务端永远 relevance，排序统一在客户端做
+    cr_sort = "relevance"
 
     params: dict[str, Any] = {
-        "query": query,
-        "rows": rows,
+        "query.bibliographic": query,
+        "rows": fetch_rows,
         "select": "DOI,title,author,container-title,issued,is-referenced-by-count,abstract,publisher,type,volume,issue,page,URL,relation",
         "mailto": ACADEMIC_MAILTO,
         "sort": cr_sort,
@@ -183,6 +189,12 @@ async def crossref_search(
     if exclude_dois:
         excl = {d.lower() for d in exclude_dois}
         papers = [p for p in papers if (p.doi or "").lower() not in excl]
+    # 客户端重排（候选集已由服务端按 relevance 召回，保证相关性）
+    if local_sort == "cited":
+        papers.sort(key=lambda p: p.cited_by_count or 0, reverse=True)
+    elif local_sort == "published":
+        papers.sort(key=lambda p: p.year or 0, reverse=True)
+    papers = papers[:rows]
     cache_set(cache_key, papers)
     return papers
 

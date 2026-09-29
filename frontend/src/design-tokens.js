@@ -1,54 +1,54 @@
 /**
- * 设计 Token（企业级 B 端 SaaS）
- * 阶段 6：替换原 ChatGPT 风格的 CSS 变量为更克制的 B 端规范。
+ * 设计 Token（LobeChat 风格 · 紫罗兰渐变科研工作台）
  * 颜色规范：
- *  - 主色蓝（操作/链接）#2563eb
- *  - 辅助紫（高级身份）#7c3aed
- *  - 绿色（成功）#16a34a
+ *  - 主色紫罗兰（操作/链接/选中）#7a5af8，品牌渐变 → #b166ff
+ *  - 辅助品红（高级身份）#c05be8
+ *  - 绿色（成功）#18a058
  *  - 橙色（提醒）#d97706
- *  - 红色（高风险/失败）#dc2626
- *  - 灰色（禁用/未执行）#94a3b8
- * 严禁：渐变、玻璃拟态、Emoji 作为正式图标。
+ *  - 红色（高风险/失败）#e5484d
+ *  - 灰色（禁用/未执行）#9b9aa7
+ * 视觉语言：大圆角、通透浅色底、用户消息紫罗兰气泡、渐变主按钮。
  */
 
 export const tokens = {
   color: {
-    primary: '#007AFF',
-    primaryHover: '#0064d1',
-    primaryPressed: '#004fa3',
-    primarySoft: 'rgba(0, 122, 255, 0.12)',
-    primarySoftStrong: 'rgba(0, 122, 255, 0.20)',
-    accent: '#7c3aed',
-    accentSoft: 'rgba(124, 58, 237, 0.10)',
-    success: '#1a7f37',
-    successBright: '#30d158',
-    successSoft: 'rgba(48, 209, 88, 0.14)',
-    warning: '#b25000',
-    warningBright: '#ff9f0a',
-    warningSoft: 'rgba(255, 159, 10, 0.15)',
-    danger: '#c1271f',
-    dangerBright: '#ff453a',
-    dangerSoft: 'rgba(255, 69, 58, 0.13)',
-    muted: '#94a3b8',
-    mutedSoft: 'rgba(148, 163, 184, 0.12)',
-    bg: '#f5f5f7',
+    primary: '#7a5af8',
+    primaryHover: '#6a48f0',
+    primaryPressed: '#5b3ee0',
+    primarySoft: 'rgba(122, 90, 248, 0.12)',
+    primarySoftStrong: 'rgba(122, 90, 248, 0.20)',
+    brandGrad: 'linear-gradient(135deg, #7a5af8 0%, #b166ff 100%)',
+    accent: '#c05be8',
+    accentSoft: 'rgba(192, 91, 232, 0.10)',
+    success: '#18a058',
+    successBright: '#2ecc71',
+    successSoft: 'rgba(46, 204, 113, 0.14)',
+    warning: '#d97706',
+    warningBright: '#ffb020',
+    warningSoft: 'rgba(255, 176, 10, 0.15)',
+    danger: '#e5484d',
+    dangerBright: '#ff5d5d',
+    dangerSoft: 'rgba(255, 93, 93, 0.13)',
+    muted: '#9b9aa7',
+    mutedSoft: 'rgba(155, 154, 167, 0.12)',
+    bg: '#f4f2fa',
     surface: '#ffffff',
-    surface2: '#fbfbfd',
-    surfaceAlt: '#f2f2f7',
-    border: 'rgba(0, 0, 0, 0.08)',
-    borderLight: 'rgba(0, 0, 0, 0.04)',
-    borderStrong: 'rgba(0, 0, 0, 0.14)',
-    text: '#1d1d1f',
-    textSecondary: '#424245',
-    textTertiary: '#86868b',
+    surface2: '#faf9fd',
+    surfaceAlt: '#f6f4fb',
+    border: 'rgba(58, 48, 108, 0.10)',
+    borderLight: 'rgba(58, 48, 108, 0.05)',
+    borderStrong: 'rgba(58, 48, 108, 0.16)',
+    text: '#241f3a',
+    textSecondary: '#55516b',
+    textTertiary: '#908ca3',
   },
   radius: {
     xs: '6px',
-    sm: '8px',
-    md: '12px',
-    lg: '16px',
-    xl: '20px',
-    xxl: '24px',
+    sm: '10px',
+    md: '14px',
+    lg: '18px',
+    xl: '24px',
+    xxl: '28px',
     pill: '999px',
   },
   shadow: {

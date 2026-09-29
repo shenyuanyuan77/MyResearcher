@@ -1,5 +1,5 @@
 """
-研途智探AI · 一键启动器。
+MyResearcher · 一键启动器。
 
 启动顺序：学术 MCP → 后端 FastAPI → 前端 Vite。
 带健康轮询与优雅退出。
@@ -158,9 +158,9 @@ def main():
     start_backend(args.backend_port)
     print("  等待后端 Agent 就绪（最多 180s）...")
     if wait_http(f"http://127.0.0.1:{args.backend_port}/health", timeout=180, expect_json_ready=True):
-        print("  ✅ 后端 Agent 就绪")
+        print("  [OK] 后端 Agent 就绪")
     else:
-        print("  ⚠️ 后端未就绪（可能仍在加载或降级）")
+        print("  [WARN] 后端未就绪（可能仍在加载或降级）")
 
     if not args.no_frontend:
         try:
@@ -170,7 +170,7 @@ def main():
             print(f"[WARN] 前端启动失败：{e}（后端/MCP 仍在运行；可手动 cd frontend && npm run dev）")
 
     print("=" * 56)
-    print("研途智探AI 已启动")
+    print("MyResearcher 已启动")
     print(f"  前端：     http://localhost:{args.frontend_port}")
     print(f"  后端 API： http://localhost:{args.backend_port}/docs")
     print(f"  健康：     http://localhost:{args.backend_port}/health")

@@ -29,3 +29,7 @@ _ref_caigou_v2/
 data/*.sqlite
 data/*.sqlite-*
 data/*.db
+
+# 个人文献库 SQLite 产物（WAL 文件每次运行都会变化）
+src/data/*.sqlite
+src/data/*.sqlite-*

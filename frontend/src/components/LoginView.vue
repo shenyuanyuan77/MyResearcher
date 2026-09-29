@@ -2,7 +2,10 @@
   <div class="login-page">
     <form class="login-card" @submit.prevent="onSubmit">
       <div class="brand-logo">🎓</div>
-      <h1>研途智探AI</h1>
+      <h1>MyResearcher</h1>
+      <p v-if="isStaticDemo" class="static-demo-tip">
+        🗂️ 当前为 GitHub Pages 静态演示，后端未部署：登录/对话不可用，本地运行方式见仓库 README。
+      </p>
       <p class="subtitle">伴随青年学者的全周期数字科研导师</p>
 
       <div class="field" :class="{ 'has-error': !!error }">
@@ -42,7 +45,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { login } from '../api/auth.js'
 
 const emit = defineEmits(['success'])
@@ -52,6 +55,16 @@ const username = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
+const isStaticDemo = ref(false)
+
+onMounted(async () => {
+  try {
+    const r = await fetch('/api/health', { method: 'GET' })
+    isStaticDemo.value = !r.ok
+  } catch {
+    isStaticDemo.value = true
+  }
+})
 
 async function onSubmit() {
   loading.value = true
@@ -75,6 +88,17 @@ async function onSubmit() {
   justify-content: center;
   background: radial-gradient(1000px 600px at 50% -10%, var(--c-primary-soft) 0%, var(--c-bg) 60%);
   padding: 24px;
+}
+.static-demo-tip {
+  margin: -6px 0 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--c-warning-soft);
+  background: var(--c-warning-soft);
+  color: var(--c-text-secondary);
+  border-radius: var(--r-md);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
 }
 .login-card {
   width: 100%;

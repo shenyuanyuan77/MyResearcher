@@ -1,1 +1,1 @@
-"""研途智探AI 子 Agent 配置。"""
+"""MyResearcher 子 Agent 配置。"""

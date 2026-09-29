@@ -1,5 +1,5 @@
 """
-研途智探AI · 学术数据 MCP 服务
+MyResearcher · 学术数据 MCP 服务
 
 五大引擎对 Agent 暴露的学术工具：
   topic_radar      ① 方向构建（领域热度 + 关键词 + 检索式）
@@ -55,7 +55,7 @@ async def mcp_lifespan(server: FastMCP):
 mcp = FastMCP(
     name="YanJiuZhiTan-Academic-MCP",
     instructions=(
-        "研途智探学术数据工具集。所有工具返回真实学术数据（带 DOI），"
+        "MyResearcher学术数据工具集。所有工具返回真实学术数据（带 DOI），"
         "禁止编造未召回的文献。调用方应将 doi_url 作为溯源指针展示给用户。"
     ),
     version="1.0.0",
@@ -251,7 +251,7 @@ register_academic_tools(mcp)
 
 
 def main() -> None:
-    print(f"[研途智探] 学术 MCP 启动 → http://{MCP_HOST}:{MCP_PORT}{MCP_PATH}")
+    print(f"[MyResearcher] 学术 MCP 启动 → http://{MCP_HOST}:{MCP_PORT}{MCP_PATH}")
     if MCP_HOST not in {"127.0.0.1", "localhost", "::1"}:
         print(
             f"[SECURITY] MCP 监听 {MCP_HOST}，建议仅绑定 127.0.0.1"

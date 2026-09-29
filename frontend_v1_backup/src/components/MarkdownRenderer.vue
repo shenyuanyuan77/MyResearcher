@@ -9,7 +9,7 @@ import hljs from 'highlight.js'
 import { normalizeMarkdown } from '../utils/markdownTables.js'
 
 /**
- * Markdown 渲染组件（研途智探AI）
+ * Markdown 渲染组件（MyResearcher）
  *
  * 渲染流程：normalizeMarkdown 修正表格结构 → markdown-it 渲染 → 失败回退转义文本。
  * 图片样式采用内联 style 注入到 img 标签，因 v-html 内容不受 Vue scoped CSS 影响。

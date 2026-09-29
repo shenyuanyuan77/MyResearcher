@@ -1,4 +1,4 @@
-# 研途智探AI（网页版）产品需求文档 PRD v1.0
+# MyResearcher（网页版）产品需求文档 PRD v1.0
 
 > 伴随青年学者从理论启蒙到产业落地的全周期数字科研导师 · 网页版
 > 基于「采购助手」架构（LangGraph + DeepSeek + FastAPI + MCP + Vue3）分叉，用免费公开学术 API 的真实 DOI 兑现「零幻觉溯源」主张。
@@ -8,7 +8,7 @@
 ## 1. 产品概述
 
 ### 1.1 产品定位
-研途智探AI（Research-Quest）是面向中国研究生与青年学者的全周期数字科研导师**网页版**。一个对话框完成：研究方向构建、文献情报提纯、学者资产透视、跨界创新推演、AI 成果审稿。全部回答强制锚定真实 DOI，杜绝学术幻觉。
+MyResearcher（Research-Quest）是面向中国研究生与青年学者的全周期数字科研导师**网页版**。一个对话框完成：研究方向构建、文献情报提纯、学者资产透视、跨界创新推演、AI 成果审稿。全部回答强制锚定真实 DOI，杜绝学术幻觉。
 
 ### 1.2 目标用户
 - **主要**：430 万在读硕博研究生（低年级为主，面临检索/精读/写作/创新焦虑）。
@@ -87,7 +87,7 @@
 ┌───────────────▼─────────────────────────────────────────┐
 │  主Agent  deepagents.create_deep_agent                  │
 │  model=deepseek-v4-pro(主)  summary=deepseek-v4-flash   │
-│  system_prompt=研途智探科研导师准则                       │
+│  system_prompt=MyResearcher科研导师准则                       │
 │  subagents: literature-analyst / review-expert          │
 │  store=InMemoryStore  checkpointer=AsyncSqliteSaver     │
 └───────────────┬─────────────────────────────────────────┘

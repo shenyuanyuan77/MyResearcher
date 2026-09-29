@@ -5,7 +5,7 @@
       <div class="hero-text">
         <h1 class="hero-title">开始你的科研探索</h1>
         <p class="hero-sub">
-          研途智探AI —— 一个对话完成方向构建、文献检索精读、学者透视、跨界推演与 AI 审稿，全部文献锚定真实 DOI。
+          MyResearcher —— 一个对话完成方向构建、文献检索精读、学者透视、跨界推演与 AI 审稿，全部文献锚定真实 DOI。
         </p>
       </div>
       <div class="hero-meta">

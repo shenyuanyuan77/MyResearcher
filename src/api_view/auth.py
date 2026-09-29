@@ -1,5 +1,5 @@
 """
-研途智探AI · 用户鉴权：JWT + 环境变量用户表。
+MyResearcher · 用户鉴权：JWT + 环境变量用户表。
 
 密码格式（verify 按前缀识别）：
   - bcrypt$<hash>  推荐（生产强制）

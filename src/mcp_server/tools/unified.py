@@ -208,9 +208,13 @@ async def fetch_json(
                 wait = max(retry_after, RETRY_BACKOFF * (2 ** attempt))
                 await _sleep(wait)
                 continue
-            # 4xx 其它：不重试
+            # 4xx 其它：不重试，也不计入熔断。4xx 多为请求构造缺陷（确定性错误），
+            # 计入健康度会连续 3 次即熔断整个源，拖垮该源的其他正常接口。
             if source:
-                _record_source_result(source, ok=False)
+                _logger.warning(
+                    "学术源 %s 返回 HTTP %s（请求缺陷，不计入熔断）: %s",
+                    source, resp.status_code, url.split("?")[0],
+                )
             return None
         except Exception as e:  # httpx.RequestError 等
             last_exc = e

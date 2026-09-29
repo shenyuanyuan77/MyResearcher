@@ -2,22 +2,57 @@
   <div class="input-area">
     <div class="input-container">
       <div class="toolbar-row">
-        <label class="toggle-label">
-          <input
-            type="checkbox"
-            role="switch"
-            :checked="showToolCalls"
-            :aria-checked="showToolCalls"
-            aria-label="启用工具调用"
-            @change="emit('toggle-tool-calls', $event.target.checked)"
-            class="toggle-checkbox"
-          />
-          <span class="toggle-switch" aria-hidden="true"></span>
-          <span class="toggle-text">启用工具调用</span>
-        </label>
+        <div class="toolbar-left">
+          <label class="toggle-label">
+            <input
+              type="checkbox"
+              role="switch"
+              :checked="showToolCalls"
+              :aria-checked="showToolCalls"
+              aria-label="启用工具调用"
+              @change="emit('toggle-tool-calls', $event.target.checked)"
+              class="toggle-checkbox"
+            />
+            <span class="toggle-switch" aria-hidden="true"></span>
+            <span class="toggle-text">启用工具调用</span>
+          </label>
+          <!-- 科研技能选择器 -->
+          <div ref="pickerWrapRef" class="skill-picker-wrap">
+            <button
+              type="button"
+              class="skill-picker-btn"
+              :class="{ open: skillPickerOpen }"
+              aria-label="选择科研技能"
+              @click="skillPickerOpen = !skillPickerOpen"
+            >
+              <AppIcon name="sparkles" :size="12" />
+              <span>技能</span>
+            </button>
+            <transition name="picker-fade">
+              <div v-if="skillPickerOpen" class="skill-picker-panel">
+                <div class="picker-head">科研技能（{{ skills.length }}）</div>
+                <div class="picker-list">
+                  <div v-for="group in skillGroups" :key="group.name" class="picker-group">
+                    <div class="picker-group-label">{{ group.icon }} {{ group.name }}</div>
+                    <button
+                      v-for="s in group.items"
+                      :key="s.id"
+                      class="picker-item"
+                      :title="s.summary"
+                      @click="pickSkill(s)"
+                    >
+                      <span class="picker-zh">{{ s.zh }}</span>
+                      <span class="picker-cat">{{ s.category }}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </transition>
+          </div>
+        </div>
         <span class="role-pill">
           <AppIcon name="sparkles" :size="12" color="var(--c-primary)" />
-          研途智探AI
+          MyResearcher
         </span>
       </div>
 
@@ -56,11 +91,11 @@
           @click="handleSend"
         >
           <span class="send-label">发送</span>
-          <AppIcon name="paperPlane" :size="14" color="#ffffff" />
+          <AppIcon name="paperPlane" :size="14" />
         </button>
         <button v-else class="stop-btn" aria-label="停止生成" @click="handleStop">
           <span>停止</span>
-          <AppIcon name="stop" :size="11" color="#ffffff" />
+          <AppIcon name="stop" :size="11" />
         </button>
       </div>
       <!-- 字数/token 提示 + 快捷键提示 -->
@@ -77,8 +112,9 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import AppIcon from './AppIcon.vue'
+import { listSkills } from '../api/skills.js'
 
 const props = defineProps({
   placeholder: { type: String, default: '输入研究方向、检索词、学者姓名，或直接描述你的科研问题…' },
@@ -108,6 +144,52 @@ const inputText = ref('')
 const isFocused = ref(false)
 const textareaRef = ref(null)
 const uploading = ref(false)
+
+// ===== 科研技能选择器 =====
+const skills = ref([])
+const skillCategories = ref([])
+const skillPickerOpen = ref(false)
+const pickerWrapRef = ref(null)
+
+// 按分类分组（保持 API 返回的六大生命周期顺序）
+const skillGroups = computed(() =>
+  skillCategories.value
+    .map((c) => ({
+      name: c.name,
+      icon: c.icon || '📦',
+      items: skills.value.filter((s) => s.category === c.name),
+    }))
+    .filter((g) => g.items.length > 0)
+)
+
+async function loadSkillCatalog() {
+  const data = await listSkills()
+  skills.value = data.skills
+  skillCategories.value = data.categories
+}
+
+function pickSkill(skill) {
+  const text = skill.example || `请用「${skill.zh}」技能帮我处理：`
+  inputText.value = inputText.value ? `${inputText.value}\n\n${text}` : text
+  skillPickerOpen.value = false
+  nextTick(() => {
+    if (textareaRef.value) {
+      textareaRef.value.focus()
+      autoResize()
+    }
+  })
+}
+
+function onDocClick(e) {
+  if (pickerWrapRef.value && !pickerWrapRef.value.contains(e.target)) {
+    skillPickerOpen.value = false
+  }
+}
+onMounted(() => {
+  loadSkillCatalog()
+  document.addEventListener('click', onDocClick)
+})
+onUnmounted(() => document.removeEventListener('click', onDocClick))
 
 async function handleUpload(e) {
   const file = e.target.files?.[0]
@@ -182,7 +264,7 @@ function autoResize() {
 }
 
 .input-container {
-  max-width: var(--content-max);
+  max-width: calc(var(--content-max) + 48px);
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
@@ -207,6 +289,88 @@ function autoResize() {
   gap: 10px;
   margin-bottom: 8px;
 }
+.toolbar-left { display: inline-flex; align-items: center; gap: 14px; min-width: 0; }
+
+/* ===== 科研技能选择器 ===== */
+.skill-picker-wrap { position: relative; }
+.skill-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-pill);
+  background: var(--c-surface);
+  color: var(--c-text-secondary);
+  font-size: var(--fz-mini);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.skill-picker-btn:hover,
+.skill-picker-btn.open {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+  background: var(--c-primary-soft);
+}
+.skill-picker-panel {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: min(340px, 78vw);
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-lg);
+  overflow: hidden;
+  z-index: 40;
+}
+.picker-head {
+  padding: 10px 14px 8px;
+  font-size: var(--fz-mini);
+  font-weight: 700;
+  color: var(--c-text-tertiary);
+  border-bottom: 1px solid var(--c-border-light);
+}
+.picker-list { overflow-y: auto; padding: 6px; }
+.picker-group { margin-bottom: 4px; }
+.picker-group-label {
+  padding: 8px 10px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--c-text-tertiary);
+  border-bottom: 1px dashed var(--c-border-light);
+  margin-bottom: 2px;
+}
+.picker-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+.picker-item:hover { background: var(--c-primary-soft); }
+.picker-zh { font-size: var(--fz-caption); font-weight: 600; color: var(--c-text); }
+.picker-item:hover .picker-zh { color: var(--c-primary); }
+.picker-cat {
+  font-size: var(--fz-mini);
+  color: var(--c-text-tertiary);
+  flex-shrink: 0;
+}
+.picker-fade-enter-active, .picker-fade-leave-active { transition: opacity .16s, transform .16s; }
+.picker-fade-enter-from, .picker-fade-leave-to { opacity: 0; transform: translateY(6px); }
 
 .toggle-label {
   display: inline-flex;
@@ -296,7 +460,7 @@ function autoResize() {
   justify-content: center;
   gap: 6px;
   padding: 0 14px 0 18px;
-  background: var(--c-primary);
+  background: var(--brand-grad, var(--c-primary));
   color: var(--c-text-on-primary);
   border: none;
   border-radius: calc(var(--r-xl) - 8px);
@@ -305,12 +469,15 @@ function autoResize() {
   letter-spacing: var(--tracking-body);
   cursor: pointer;
   box-shadow: 0 1px 3px var(--c-primary-soft-strong);
-  transition: transform var(--transition-fast), box-shadow var(--transition), background var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition), filter var(--transition-fast);
   will-change: transform;
 }
-.send-btn:hover:not(:disabled) { background: var(--c-primary-hover); box-shadow: var(--sh-primary); transform: translateY(-1px); }
+.send-btn:hover:not(:disabled) { filter: brightness(1.08); box-shadow: var(--sh-primary); transform: translateY(-1px); }
 .send-btn:active:not(:disabled) { transform: scale(0.94); }
-.send-btn:disabled { background: var(--c-muted-soft); color: var(--c-text-tertiary); cursor: not-allowed; box-shadow: none; }
+.send-btn:disabled {
+  background: var(--c-muted-soft); color: var(--c-text-secondary); cursor: not-allowed;
+  box-shadow: none; border: 1px dashed var(--c-border-strong);
+}
 .send-btn:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
 
 .stop-btn {

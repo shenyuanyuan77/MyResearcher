@@ -1,5 +1,5 @@
 """
-研途智探AI · 服务依赖健康探测（学术 MCP）。
+MyResearcher · 服务依赖健康探测（学术 MCP）。
 精简版：仅探测 MCP（去 sandbox/mongo/java_erp）。
 """
 

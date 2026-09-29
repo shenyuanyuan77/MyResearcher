@@ -1,5 +1,5 @@
 """
-研途智探五大引擎对 Agent 暴露的学术工具（编排三源，智能归并/降级）。
+MyResearcher五大引擎对 Agent 暴露的学术工具（编排三源，智能归并/降级）。
 
 工具命名对应五大引擎：
   topic_radar       → ① 方向构建（领域热度 + 关键词 + 检索式）
@@ -56,7 +56,7 @@ def _tokenize_topic(topic: str, max_n: int = 8) -> list[str]:
     if not topic:
         return []
     tokens: list[str] = []
-    if _HAS_JIEBA and any("\u4e00" <= c <= "\u9fff" for c in topic):
+    if _HAS_JIEBA and any("一" <= c <= "鿿" for c in topic):
         # 中文：jieba 分词 + 停用词过滤
         raw = [w.strip() for w in jieba.cut(topic, cut_all=False) if w.strip()]
         tokens = [w for w in raw if len(w) > 1 and w not in _CN_STOPWORDS]
@@ -337,6 +337,26 @@ async def paper_by_doi(doi: str) -> dict[str, Any]:
     }
 
 
+def _title_similarity(a: str, b: str) -> float:
+    """标题相似度（归一化字符串 ratio 与词级 Jaccard 取大者，0~1）。"""
+    import re as _re
+    from difflib import SequenceMatcher
+
+    def _norm(s: str) -> str:
+        return _re.sub(r"\s+", " ", _re.sub(r"[^\w\s]", " ", (s or "").lower())).strip()
+
+    na, nb = _norm(a), _norm(b)
+    if not na or not nb:
+        return 0.0
+    ratio = SequenceMatcher(None, na, nb).ratio()
+    ta, tb = set(na.split()), set(nb.split())
+    jac = len(ta & tb) / len(ta | tb) if (ta | tb) else 0.0
+    return max(ratio, jac)
+
+
+_TITLE_MATCH_THRESHOLD = 0.55
+
+
 async def paper_distill(identifier: str) -> dict[str, Any]:
     """② 精读：输入标题或 DOI，返回单篇结构化精读要点（含真实摘要/可引用句）。"""
     identifier = (identifier or "").strip()
@@ -347,10 +367,36 @@ async def paper_distill(identifier: str) -> dict[str, Any]:
         base = await paper_by_doi(identifier)
         paper = base.get("paper") if base.get("ok") else None
     else:
-        # 当标题用，搜第一条
-        res = await paper_search(identifier, rows=1)
-        papers = res.get("papers") or []
-        paper = papers[0] if papers else None
+        # 当标题用：按相关性召回 Top-N，再用标题相似度选优。
+        # 禁止无脑取第一条——cited 排序曾把高引错论文（lme4/Sanger 1977）顶到
+        # 首位，导致精读对象整体错位；相似度低于阈值时如实返回候选列表。
+        res = await paper_search(identifier, rows=8, sort="relevance")
+        candidates = res.get("papers") or []
+        paper = None
+        best_score = 0.0
+        for c in candidates:
+            score = _title_similarity(identifier, c.get("title") or "")
+            if score > best_score:
+                best_score = score
+                paper = c
+        if paper is not None and best_score < _TITLE_MATCH_THRESHOLD:
+            return {
+                "ok": False,
+                "message": (
+                    f"未找到与该标题足够匹配的文献（最高相似度 {best_score:.2f} < "
+                    f"{_TITLE_MATCH_THRESHOLD}），无法确认精读对象（不编造）。"
+                ),
+                "candidates": [
+                    {
+                        "title": c.get("title"),
+                        "doi_url": c.get("doi_url"),
+                        "year": c.get("year"),
+                        "cited_by_count": c.get("cited_by_count"),
+                    }
+                    for c in candidates[:5]
+                ],
+                "hint": "若候选中有目标文献，请用其 DOI 重试；若没有，请核对标题拼写或上传 PDF 精读。",
+            }
     if not paper:
         return {"ok": False, "message": "未找到该文献，无法精读（不编造）。"}
     abstract = paper.get("abstract") or ""
@@ -407,10 +453,24 @@ async def topic_radar(topic: str) -> dict[str, Any]:
     # 顺手取几篇高引代表作，帮助判断领域核心
     top = await paper_search(topic, rows=6)
     top_papers = (top.get("papers") or [])[:6]
-    # 关键词：jieba 分词（替代原 split() 粗切）
-    keywords = _tokenize_topic(topic, max_n=6)
+    # 关键词：优先从高引代表作标题提炼高频相关词（排除主题词本身与通用词），
+    # 无召回时退回主题分词。直接回显主题切词（large/language/model/agents）
+    # 对用户没有信息量。
+    from collections import Counter
+
+    _GENERIC_WORDS = {
+        "using", "based", "via", "toward", "towards", "from", "with", "into",
+        "approach", "framework", "study", "review", "survey", "novel", "new",
+    }
+    query_toks = {t.lower() for t in _tokenize_topic(topic, max_n=8)}
+    title_toks: Counter = Counter()
+    for p in top_papers:
+        for t in _content_tokens(p.get("title") or ""):
+            if len(t) >= 4 and t not in query_toks and t not in _GENERIC_WORDS:
+                title_toks[t] += 1
+    keywords = [w for w, _ in title_toks.most_common(8)] or _tokenize_topic(topic, max_n=6)
     # 检索式：动态生成（含中英双语，若主题含中文则补英文检索式）
-    has_cn = any("\u4e00" <= c <= "\u9fff" for c in topic)
+    has_cn = any("一" <= c <= "鿿" for c in topic)
     queries = [
         f'"{topic}" survey OR review',
         f'"{topic}" recent advances',
@@ -440,6 +500,14 @@ async def author_profile(name: str, institution: str = "") -> dict[str, Any]:
     """③ 资产透视：学者画像（h 指数、代表作、主题、合作网络提示）。"""
     prof = await openalex_author_profile(name, institution or None)
     if not prof:
+        # 区分「源暂时不可用」与「确实查无此人」：前者是可重试的基础设施问题，
+        # 后者才是零幻觉意义上的「未找到」
+        if not _source_available("openalex"):
+            return {
+                "ok": False,
+                "source_unavailable": True,
+                "message": f"OpenAlex 学术源暂时不可用（熔断中），暂时无法查询学者「{name}」，请稍后重试。",
+            }
         return {
             "ok": False,
             "message": f"未在 OpenAlex 找到学者「{name}」。请补充机构或 ORCID（零幻觉：不编造）。",
@@ -457,6 +525,53 @@ async def author_profile(name: str, institution: str = "") -> dict[str, Any]:
         ),
         "note": "学者数据来自 OpenAlex（全球开放学术索引），含真实 h 指数与代表作 DOI。",
     }
+
+
+def _content_tokens(text: str) -> list[str]:
+    """提取内容词：英文小写词（len≥3）+ 中文 jieba 分词（len≥2）。"""
+    import re as _re
+
+    tokens: list[str] = [t.lower() for t in _re.findall(r"[A-Za-z][A-Za-z\-]{2,}", text or "")]
+    if _re.search(r"[一-鿿]", text or ""):
+        try:
+            import jieba
+
+            tokens += [t for t in jieba.cut(text) if len(t) >= 2 and _re.search(r"[一-鿿]", t)]
+        except Exception:
+            pass
+    return tokens
+
+
+def _cross_relevance_guard(query: str, papers: list) -> list:
+    """跨界检索相关性守卫：标题须与两域关键词有实质重叠，否则视为噪声过滤。
+
+    cross_search 的降级路径（S2 限流 → paper_search 宽查询）曾召回与两域无关的
+    全局高引论文（如 attention×protein 返回 Lowry 蛋白定量 1951 / 公司理论 1976），
+    且噪声计数直接推高可行性评分。守卫要求标题与查询至少重叠 2 个内容词
+    （查询本身只有 ≤3 个内容词时放宽为 1 个）；纯中文查询对英文标题不做过滤
+    （避免语言不通误杀真实交叉工作）。
+    """
+    if not papers:
+        return papers
+    q_tokens = set(_content_tokens(query))
+    if not q_tokens:
+        return papers
+    has_cjk_query = any("一" <= c <= "鿿" for c in query)
+    min_overlap = 1 if len(q_tokens) <= 3 else 2
+
+    def _ok(p) -> bool:
+        title_tokens = set(_content_tokens(getattr(p, "title", "") or ""))
+        if not title_tokens:
+            return False
+        overlap = len(q_tokens & title_tokens)
+        if overlap >= min_overlap:
+            return True
+        # 中文查询 × 英文标题：词汇不通，保守保留
+        if has_cjk_query and not any("一" <= c <= "鿿" for c in (getattr(p, "title", "") or "")):
+            return True
+        return False
+
+    return [p for p in papers if _ok(p)]
 
 
 async def cross_search(domain_a: str, domain_b: str, limit: int = 8) -> dict[str, Any]:
@@ -482,8 +597,23 @@ async def cross_search(domain_a: str, domain_b: str, limit: int = 8) -> dict[str
         except Exception:
             papers = []
 
+    # 相关性守卫：无论主源（S2）还是降级路径召回，都过滤与两域关键词无关的
+    # 候选——否则噪声文献计数会直接推高可行性评分（曾出现 attention×protein
+    # 返回 1951 年蛋白定量论文却打出 8/10「低风险」）
+    raw_count = len(papers)
+    papers = _cross_relevance_guard(f"{domain_a} {domain_b}", papers)
+
     # 可行性量化：用 OpenAlex 主题热度做数据支撑
     feasibility = await _assess_cross_feasibility(domain_a, domain_b, len(papers))
+    if raw_count > len(papers):
+        feasibility["reasons"].append(
+            f"已过滤 {raw_count - len(papers)} 篇与两域关键词无关的候选文献（数据源降级召回的噪声）"
+        )
+    if not papers:
+        feasibility["gap_opportunity"] = (
+            feasibility.get("gap_opportunity")
+            or "未检索到与两域关键词实质相关的交叉工作：可能是真实空白，也可能是数据源受限，请结合下方两域热度自行判断。"
+        )
 
     return {
         "domain_a": domain_a,

@@ -2,7 +2,7 @@
   <div class="login-page">
     <form class="login-card" @submit.prevent="onSubmit">
       <div class="brand-logo">🎓</div>
-      <h1>研途智探AI</h1>
+      <h1>MyResearcher</h1>
       <p class="subtitle">伴随青年学者的全周期数字科研导师</p>
 
       <label>

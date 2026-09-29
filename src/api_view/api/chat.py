@@ -721,10 +721,12 @@ async def stream_chat_response(
                 })
 
                 # 发送 done 事件标记流结束（前端由此知道可以展示中断 UI）
+                # collected_content 为逐 token 原始累积，发送前统一清洗泄漏
+                # （逐 token 清洗会吞掉换行 token，见上方文本 token 分支注释）
                 yield create_sse_message({
                     "type": "done",
                     "thread_id": thread_id,
-                    "content": collected_content,
+                    "content": strip_leaked_tool_meta(collected_content),
                     "interrupted": True,
                     "final_assistants": [
                         dm.get("content") or ""
@@ -929,7 +931,10 @@ async def stream_chat_response(
                 if "【系统上下文" in content_text:
                     continue
 
-                content_text = strip_leaked_tool_meta(content_text)
+                # 注意：不要对单个 token 做 strip_leaked_tool_meta——其尾部 rstrip()
+                # 会把「恰好是换行符的 token」清空，导致整条回答的 Markdown
+                # （标题/表格/分段）坍塌成一行（DeepSeek 流式 token 平均 1 字符）。
+                # 泄漏清洗在流结束处对 collected_content 与 display_messages 统一进行。
                 if not content_text:
                     continue
 
@@ -1060,7 +1065,9 @@ async def stream_chat_response(
         yield create_sse_message({
             "type": "done",
             "thread_id": thread_id,
-            "content": collected_content,
+            # collected_content 为逐 token 原始累积，发送前统一清洗泄漏
+            # （memory_update 偏好 JSON 等尾巴）；逐 token 清洗会吞掉换行 token
+            "content": strip_leaked_tool_meta(collected_content),
             "final_assistants": final_assistants,
         })
 
@@ -1068,8 +1075,25 @@ async def stream_chat_response(
         write_debug_log(debug_log, "STREAM_ERROR", {"error": str(e)})
         yield create_sse_message({
             "type": "error",
-            "message": str(e)
+            "message": _friendly_model_error(e)
         })
+
+
+def _friendly_model_error(e: Exception) -> str:
+    """把模型服务的原始错误翻译为用户可读的中文提示（原始信息保留在日志中）。"""
+    raw = str(e)
+    lowered = raw.lower()
+    if "402" in lowered or "insufficient balance" in lowered:
+        return "模型服务余额不足，请为 DeepSeek 账户充值后重试。"
+    if "401" in lowered or "unauthorized" in lowered or "invalid api key" in lowered:
+        return "模型服务认证失败，请检查 API Key 配置。"
+    if "429" in lowered or "rate limit" in lowered or "too many requests" in lowered:
+        return "模型请求过于频繁，请稍等片刻重试。"
+    if "timeout" in lowered or "timed out" in lowered:
+        return "模型服务响应超时，请重试；若持续超时请检查网络。"
+    if "connection" in lowered and ("error" in lowered or "refused" in lowered):
+        return "无法连接模型服务，请检查网络后重试。"
+    return f"处理请求时出错：{raw[:200]}"
 
 
 # ============================================================
@@ -1221,6 +1245,7 @@ async def get_chat_state(
                 tool_call_id=item.get("tool_call_id"),
                 tool_name=item.get("tool_name"),
                 text=item.get("text"),
+                references=item.get("references"),
             )
             message_list.append(message)
 

@@ -1,5 +1,5 @@
 """
-研途智探AI · Agent 加载器（单例）。
+MyResearcher · Agent 加载器（单例）。
 
 精简自采购助手：去 Mongo，会话归属/标题/展示消息统一走 local_session_store（JSON 文件，
 进程重启可保留）；checkpoint 由 main_agent 内部 SQLite checkpointer 管理。

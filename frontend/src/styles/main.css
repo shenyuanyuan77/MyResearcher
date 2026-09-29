@@ -1,5 +1,5 @@
 /**
- * 研途智探AI · 全局样式（Apple 设计语言）
+ * MyResearcher · 全局样式（Apple 设计语言）
  *
  * 特征：
  *  - 系统字体栈 + 紧凑字距 + 抗锯齿（接近 SF Pro 观感）
@@ -34,10 +34,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 input, textarea, select { font-family: inherit; font-size: var(--fz-body); outline: none; color: inherit; }
 img { display: block; max-width: 100%; }
 
-/* Apple 风格细滚动条 */
+/* LobeChat 风格细滚动条 */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.18); border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.32); background-clip: padding-box; border: 2px solid transparent; }
+::-webkit-scrollbar-thumb { background: rgba(88, 74, 150, 0.22); border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(88, 74, 150, 0.38); background-clip: padding-box; border: 2px solid transparent; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* 选中色 */
@@ -124,9 +124,12 @@ img { display: block; max-width: 100%; }
 .btn:hover:not(:disabled) { border-color: var(--c-primary); color: var(--c-primary); }
 .btn:active:not(:disabled) { transform: scale(0.96); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary { background: var(--c-primary); color: #fff; border-color: var(--c-primary); box-shadow: 0 1px 2px rgba(10,132,255,0.3); }
+.btn-primary {
+  background: var(--brand-grad, var(--c-primary)); color: #fff; border-color: transparent;
+  box-shadow: 0 1px 2px rgba(122, 90, 248, 0.3);
+}
 .btn-primary:hover:not(:disabled) { background: var(--c-primary-hover); color: #fff; box-shadow: var(--sh-primary); transform: translateY(-1px); }
-.btn-primary:active:not(:disabled) { transform: scale(0.96); box-shadow: 0 1px 2px rgba(10,132,255,0.3); }
+.btn-primary:active:not(:disabled) { transform: scale(0.96); box-shadow: 0 1px 2px rgba(122, 90, 248, 0.3); }
 .btn-success { background: var(--c-success); color: #fff; border-color: var(--c-success); }
 .btn-success:hover:not(:disabled) { background: #146c2e; color: #fff; border-color: #146c2e; }
 .btn-warning { background: var(--c-warning); color: #fff; border-color: var(--c-warning); }
@@ -217,7 +220,7 @@ img { display: block; max-width: 100%; }
 
 /* ============ Skeleton ============ */
 .skeleton {
-  background: linear-gradient(90deg, var(--c-surface-alt) 25%, #ececf1 37%, var(--c-surface-alt) 63%);
+  background: var(--c-shimmer);
   background-size: 400% 100%; animation: skeletonShine 1.4s ease infinite;
   border-radius: var(--r-sm);
 }

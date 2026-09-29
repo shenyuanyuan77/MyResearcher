@@ -1,5 +1,5 @@
 /**
- * 研途智探AI · Markdown 表格规范化（轻量版）
+ * MyResearcher · Markdown 表格规范化（轻量版）
  *
  * 只做 GFM 表格的健壮性修正：
  *  - 表格前后补空行（markdown-it 需要）

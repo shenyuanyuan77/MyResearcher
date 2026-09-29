@@ -1,5 +1,5 @@
 """
-研途智探AI · 个人文献库 API。
+MyResearcher · 个人文献库 API。
 
 跨会话知识沉淀：用户可收藏检索到的好论文，标记阅读状态，加笔记。
 数据持久化到 data/library.sqlite。

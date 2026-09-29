@@ -1,7 +1,7 @@
-# AGENTS.md — 研途智探AI（科研导师网页版）
+# AGENTS.md — MyResearcher（科研导师网页版）
 
 > 面向 ZCode agent 的项目工作指南。仅记录**不读代码就会踩坑**的项目专属事实。
-> 完整背景见 [README.md](README.md) / [研途智探PRD.md](研途智探PRD.md) / [docs/架构说明.md](docs/架构说明.md)。
+> 完整背景见 [README.md](README.md) / [MyResearcherPRD.md](MyResearcherPRD.md) / [docs/架构说明.md](docs/架构说明.md)。
 
 ## 项目定位
 研究生科研探索助手网页版：一次对话完成方向构建、文献检索精读、学者透视、跨界推演、AI 审稿。**所有文献锚定真实 DOI、可溯源**。技术栈：LangGraph + DeepAgents + DeepSeek + FastAPI + fastmcp + Vue3。
@@ -26,7 +26,11 @@ start.bat / stop.bat                # Windows（纯 ASCII，规避 cmd GBK 崩�
 # 前端
 cd frontend && npm install && npm run dev      # 开发（:3001）
 cd frontend && npm run build                   # 构建到 frontend/dist
-cd frontend && npm run test:md                 # markdown 表格单测
+cd frontend && npm run test:md                 # markdown 工具单测
+
+# 后台常驻启动（测试/CI 用，服务脱离启动进程树；stop_bg.py 按端口停）
+PYTHONIOENCODING=utf-8 python scripts/dev/start_bg.py   # detached 启动 MCP + 后端
+python scripts/dev/stop_bg.py                            # 停止后台服务
 
 # 冒烟测试（均在 scripts/dev/）
 PYTHONPATH=src python scripts/dev/smoke_academic.py     # 三源连通 + Paper 归一（离线直接调引擎层）
@@ -42,7 +46,7 @@ python scripts/dev/smoke_engines.py                     # 端到端：登录→S
 代码按包根在 `src/` 组织，**import 顶层包名**（`from agent...` / `from api_view...` / `from mcp_server...`），所以**任何 Python 运行都需要 `PYTHONPATH=src`**（`start_all.py`、冒烟脚本、`langgraph.json` 已各自处理）。
 
 1. **`src/agent/`** — 主 Agent、子 Agent、工具、中间件、提示词。
-   - `main_agent.py`：`create_deep_agent` 组装；工具池 = 学术 MCP 工具 + `web_search` + `write_markdown_table` + `emit_research_report` + `save_report_locally` + `get_system_date`。
+   - `main_agent.py`：`create_deep_agent` 组装；工具池 = 学术 MCP 工具 + `web_search` + `write_markdown_table` + `emit_research_report` + `save_report_locally` + `get_system_date` + `load_research_skill`（科研技能库，见 `src/agent/skills/`，33 个技能按六大生命周期分类：文献情报/研究设计/论文写作/审稿与发表/图表汇报/全流程与转化；来源=本机 ZCode skills 25 个 + K-Dense-AI/scientific-agent-skills 8 个（MIT），前端技能中心走 `GET /api/skills`）。
    - 子 Agent：`literature-analyst`、`review-expert`（YAML + `subagents/loader.py`，按工具名子串匹配）。
    - `middlewares/`：ContextInjection / MemoryUpdate / Summarization / EnsureToolCallPairs。
    - `memory/prompts.py`：系统提示词（五大引擎分流 + 零幻觉铁律 + 出表规范）。
@@ -76,6 +80,7 @@ python scripts/dev/smoke_engines.py                     # 端到端：登录→S
 
 ## 数据与产物（已 gitignore，勿提交）
 - `data/checkpoints.sqlite*`（LangGraph checkpoint，~47MB）、`data/memory.sqlite`、`data/local_sessions/`：会话记忆 + 用户偏好 Store，进程重启可保留。
+- `src/data/library.sqlite*`（个人文献库 + WAL/SHM，运行时数据）：`.gitignore` 已有规则（`src/data/*.sqlite*`），但**历史上曾被跟踪的文件需 `git rm --cached` 才真正解除跟踪**（ignore 规则对已跟踪文件无效），已执行过一次（2026-09）；若 `git status` 再出现这些文件的改动，先查是否被重新 `git add`。
 - `logs/`：各服务运行日志（mcp/backend/frontend.log）。
 - `_ref_caigou/`、`_ref_caigou_v2/`：参考工程（采购助手），**只读参考，勿改勿提交**。
 - `gui-test-screenshots/`、`frontend_v1_backup/`：历史快照。

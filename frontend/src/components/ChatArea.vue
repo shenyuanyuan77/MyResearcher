@@ -6,6 +6,7 @@
         v-if="displayMessages.length === 0"
         :pending-summary="pendingSummary"
         @pick-quick="$emit('quick-send', $event)"
+        @open-pending="$emit('open-pending', $event)"
       />
 
       <!-- 消息列表（user / assistant / tool 按时间顺序混合展示）-->
@@ -42,7 +43,7 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import MessageItem from './MessageItem.vue'
 import WelcomeView from './WelcomeView.vue'
 
-defineEmits(['quick-send', 'quote-reply'])
+defineEmits(['quick-send', 'quote-reply', 'open-pending'])
 
 /**
  * 对话区域组件
@@ -234,12 +235,12 @@ onMounted(() => nextTick(scrollToBottom))
 }
 
 .message-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--c-border-strong);
   border-radius: 3px;
 }
 
 .message-list::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--c-muted);
 }
 
 /* 消息列表：全宽，由各消息行自己水平居中 */

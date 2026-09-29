@@ -74,12 +74,12 @@
         </div>
       </div>
 
-      <div v-if="message.args && !hideToolArgs" class="tool-block">
+      <div v-if="message.args && !hideToolArgs && !isSkillTool" class="tool-block">
         <div class="tool-label">参数</div>
         <div class="tool-value mono">{{ formatArgs(message.args) }}</div>
       </div>
 
-      <div v-if="message.text && !(isEmitReportTool && message.tool_status === 'calling')" class="tool-block">
+      <div v-if="message.text && !(isEmitReportTool && message.tool_status === 'calling') && !isSkillTool" class="tool-block">
         <div class="tool-label">结果</div>
         <div class="tool-result-box">
           <span class="code-chip" aria-hidden="true">{ }</span>
@@ -87,6 +87,16 @@
             <MarkdownRenderer :content="cleanText(message.text)" :citations="message.references" />
           </div>
         </div>
+      </div>
+
+      <!-- 科研技能加载专属卡片：方法论已注入，不展示超长原文 -->
+      <div v-if="isSkillTool" class="skill-load-box">
+        <span class="skill-load-glyph" aria-hidden="true">⚡</span>
+        <div class="skill-load-copy">
+          <strong>科研技能已加载</strong>
+          <span>{{ skillLoadedName }}方法论注入上下文，将严格按技能流程执行。</span>
+        </div>
+        <span class="status-badge done">{{ message.tool_status === 'calling' ? '加载中' : '已就绪' }}</span>
       </div>
 
       <!-- 学术文献富卡片（结构化引用，来自学术工具 references） -->
@@ -127,7 +137,7 @@
         </div>
       </div>
 
-      <div v-if="message.tool_status === 'calling' && !hasToolContent && !isEmitReportTool" class="tool-waiting">
+      <div v-if="message.tool_status === 'calling' && !hasToolContent && !isEmitReportTool && !isSkillTool" class="tool-waiting">
         <span class="waiting-dot"></span>
         <span class="waiting-dot"></span>
         <span class="waiting-dot"></span>
@@ -202,6 +212,7 @@ const TOOL_THINKING_MAP = {
   author_profile: ['正在构建学者画像…', '正在统计 h 指数与代表作…'],
   cross_search: ['正在检索交叉工作…', '正在推演跨界融合路径…'],
   web_search: ['正在搜索网络资源…'],
+  load_research_skill: ['正在加载科研技能方法论…', '正在按技能流程组织答案…'],
 }
 const THINKING_STEPS_GENERIC = [
   '正在检索权威学术数据库…',
@@ -267,6 +278,20 @@ onUnmounted(() => stopThinkingTimer())
 const isEmitReportTool = computed(() =>
   String(props.message?.tool_name || '').includes('emit_research_report')
 )
+
+// 科研技能加载工具：隐藏超长方法论原文，只出「已加载」卡片
+const isSkillTool = computed(() =>
+  String(props.message?.tool_name || '').toLowerCase() === 'load_research_skill'
+)
+const skillLoadedName = computed(() => {
+  const raw = String(props.message?.args || '')
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    const id = parsed?.skill_id || ''
+    if (id) return `「${id}」`
+  } catch { /* 非 JSON 时退回原文片段 */ }
+  return raw ? `「${raw.slice(0, 40)}」` : ''
+})
 
 const hideToolArgs = computed(() =>
   !!(props.message?.hide_args || isEmitReportTool.value)
@@ -356,6 +381,13 @@ function formatToolName(name) {
     save_report_locally: '保存报告',
     get_system_date: '系统日期',
     task: '委派子Agent',
+    load_research_skill: '科研技能',
+    ls: '列目录',
+    glob: '文件查找',
+    read_file: '读文件',
+    write_file: '写文件',
+    edit_file: '编辑文件',
+    execute: '执行命令',
   }
   if (map[name]) return map[name]
   // 未知工具：清理原始名称作为兜底
@@ -428,9 +460,9 @@ function sanitizeAssistantContent(text) {
   justify-content: center;
   box-shadow: var(--sh-sm);
 }
-.user-avatar { background: linear-gradient(180deg, #ffb45c 0%, #ff9f0a 100%); }
+.user-avatar { background: linear-gradient(180deg, #ff9d6c 0%, #ff6ba8 100%); }
 .assistant-avatar,
-.tool-avatar { background: linear-gradient(180deg, #5b8cff 0%, #007aff 100%); }
+.tool-avatar { background: var(--brand-grad, linear-gradient(180deg, #8a6bff 0%, #7a5af8 100%)); }
 
 .message-content-wrapper {
   min-width: 0;
@@ -520,12 +552,12 @@ function sanitizeAssistantContent(text) {
   font-weight: 600;
 }
 .tool-tag {
-  background: rgba(255, 159, 10, .12);
-  color: #c77700;
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
 }
 .name-tag {
-  background: rgba(255, 159, 10, .10);
-  color: #d88900;
+  background: var(--brand-grad-soft, rgba(122, 90, 248, .10));
+  color: var(--c-primary);
 }
 .tool-aside {
   display: inline-flex;
@@ -662,6 +694,25 @@ function sanitizeAssistantContent(text) {
   gap: 6px;
   padding: 8px 0 0;
 }
+
+/* 科研技能加载卡片 */
+.skill-load-box {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--c-primary-soft-strong);
+  border-radius: var(--r-md);
+  background: var(--brand-grad-soft, var(--c-primary-soft));
+}
+.skill-load-glyph { font-size: 18px; line-height: 1; }
+.skill-load-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.skill-load-copy strong { font-size: var(--fz-caption); color: var(--c-text); }
+.skill-load-copy span {
+  font-size: var(--fz-mini); color: var(--c-text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .waiting-dot {
   width: 7px;
   height: 7px;
@@ -702,6 +753,10 @@ function sanitizeAssistantContent(text) {
   transition: opacity 0.15s;
 }
 .message-assistant:hover .message-actions { opacity: 1; }
+/* 触屏 / 无 hover 设备：操作栏常显，避免复制/引用不可达 */
+@media (hover: none) {
+  .message-actions { opacity: 1; }
+}
 .msg-action-btn {
   display: inline-flex;
   align-items: center;

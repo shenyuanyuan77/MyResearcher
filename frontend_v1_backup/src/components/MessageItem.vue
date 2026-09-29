@@ -36,7 +36,7 @@
           <span class="thinking-spinner" aria-hidden="true"></span>
           <span class="thinking-label">{{ thinkingLabel }}</span>
         </div>
-        <div class="thinking-hint">研途智探AI 正在处理，请稍候…</div>
+        <div class="thinking-hint">MyResearcher 正在处理，请稍候…</div>
       </div>
       <!-- 消息正文 -->
       <div v-else class="message-content">
@@ -251,7 +251,7 @@ function previewImage(src) { window.open(src, '_blank') }
 
 /** AI 消息的角色标签文字 */
 function getRoleLabel(source) {
-  return '研途智探AI'
+  return 'MyResearcher'
 }
 
 /** AI 消息头像 */
@@ -308,11 +308,11 @@ function formatToolName(name) {
 
 function getSourceName(source) {
   const sourceMap = {
-    'main': '研途智探AI',
+    'main': 'MyResearcher',
     'literature-analyst': '文献分析专家',
     'review-expert': '审稿专家'
   }
-  if (!source) return '研途智探AI'
+  if (!source) return 'MyResearcher'
   if (sourceMap[source]) return sourceMap[source]
   // UUID / 未知来源：不暴露内部 ID（展示层已用「助手」）
   if (/^[0-9a-fA-F-]{20,}$/.test(source)) return '助手'

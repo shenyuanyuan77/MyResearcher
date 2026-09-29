@@ -1,11 +1,11 @@
-# 研途智探AI · 网页版
+# MyResearcher · 网页版
 
 > 面向研究生的科研探索助手 · 网页版
 > 一个对话完成方向构建、文献检索精读、学者透视、跨界推演与 AI 审稿，**全部文献锚定真实 DOI，可溯源可核验**。
 
 基于 LangGraph + DeepSeek + FastAPI + MCP + Vue3 构建，用 **CrossRef / OpenAlex / Semantic Scholar 等公开学术 API 的真实 DOI** 兑现「文献溯源零幻觉」——所有召回文献带真实 DOI 可点击核验。注：DOI 锚定保证文献真实存在，LLM 对摘要的提炼/改写仍建议对照原文。
 
-📖 **完整产品需求**见 [研途智探PRD.md](研途智探PRD.md)
+📖 **完整产品需求**见 [MyResearcherPRD.md](MyResearcherPRD.md)
 
 ---
 
@@ -97,8 +97,8 @@ Vue3 SPA (:3001)  ──SSE──►  FastAPI (:8000)  ──►  DeepAgent (Dee
 ## 📂 目录结构
 
 ```
-研途智探demo/
-├─ 研途智探PRD.md            产品需求文档
+MyResearcherdemo/
+├─ MyResearcherPRD.md            产品需求文档
 ├─ start.bat / stop.bat      Windows 启停
 ├─ start_all.py              Python 一键启动器
 ├─ .env.example              环境变量模板
@@ -128,7 +128,7 @@ python scripts/dev/smoke_engines.py
 ---
 
 ## 📚 文档
-- [研途智探PRD.md](研途智探PRD.md) — 产品需求文档
+- [MyResearcherPRD.md](MyResearcherPRD.md) — 产品需求文档
 - [docs/运行与演示指南.md](docs/运行与演示指南.md) — 详细启动与演示脚本
 - [docs/架构说明.md](docs/架构说明.md) — 技术架构与设计决策
 

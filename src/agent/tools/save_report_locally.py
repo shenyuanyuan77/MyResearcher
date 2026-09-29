@@ -1,6 +1,6 @@
 """本机保存报告为 Markdown（默认保存到用户桌面；跨平台）。
 
-研途智探 MVP 版：仅输出 .md（避免 weasyprint 重依赖）；PDF 留作后续增强。
+MyResearcher MVP 版：仅输出 .md（避免 weasyprint 重依赖）；PDF 留作后续增强。
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ def resolve_desktop_dir() -> Path:
 def _sanitize_stem(filename: str) -> str:
     name = Path(str(filename).replace("\\", "/")).name
     name = re.sub(r"[^\w\u4e00-\u9fff.\-]+", "_", name)
-    stem = Path(name).stem or "研途智探报告"
+    stem = Path(name).stem or "MyResearcher报告"
     return stem
 
 
@@ -106,7 +106,7 @@ def create_save_report_tool(download_dir: Optional[Path] = None):
             fmt = "md"
         if not filename:
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"研途智探报告_{stamp}"
+            filename = f"MyResearcher报告_{stamp}"
         stem = _sanitize_stem(filename)
 
         target_dir = fixed_dir or resolve_desktop_dir()
